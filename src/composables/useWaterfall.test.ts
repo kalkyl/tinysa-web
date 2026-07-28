@@ -38,13 +38,21 @@ describe('useWaterfall', () => {
     expect(rows.value.length).toBe(0)
   })
 
-  it('setEnabled(false) clears the buffer', () => {
-    const { setEnabled, ingest, rows } = useWaterfall()
+  it('setEnabled(false) pauses ingestion but preserves the buffer, and re-enabling resumes without loss', () => {
+    const { setEnabled, ingest, rows, clear } = useWaterfall()
+    clear()
     setEnabled(true)
     ingest(Float64Array.from([0]), Float64Array.from([-90]), 1000)
-    expect(rows.value.length).toBeGreaterThan(0)
+    expect(rows.value.length).toBe(1)
+
     setEnabled(false)
-    expect(rows.value.length).toBe(0)
+    expect(rows.value.length).toBe(1) // still there — just paused, not cleared
+    ingest(Float64Array.from([0]), Float64Array.from([10]), 2000) // ignored while disabled
+    expect(rows.value.length).toBe(1)
+
+    setEnabled(true)
+    ingest(Float64Array.from([0]), Float64Array.from([-80]), 3000)
+    expect(rows.value.length).toBe(2) // resumed, original row untouched
   })
 
   it('displayRows passes amplitudes through unchanged when no noise-floor subtraction is active', () => {

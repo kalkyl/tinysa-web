@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue'
 import { MARGIN, PlotRenderer, type PlotDrawInput, type PlotMarkerPoint, type PlotSeries } from '../plot/PlotRenderer'
-import { categoricalColor, LIVE_TRACE_SLOT, OVERLAY_SLOT_START, PEAK_HOLD_SLOT } from '../plot/colors'
+import { categoricalColor, CHROME, LIVE_TRACE_SLOT, OVERLAY_SLOT_START, PEAK_HOLD_SLOT } from '../plot/colors'
 import { convertArrayFromDbm, convertArrayUnit, convertFromDbm, formatAmplitude } from '../plot/units'
 import { formatFrequencyHz } from '../plot/axes'
 import { useLiveMeasurement } from '../composables/useLiveMeasurement'
@@ -18,6 +18,7 @@ import type { YAxisUnit } from '../plot/units'
 
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 const containerEl = ref<HTMLDivElement | null>(null)
+const rootEl = ref<HTMLDivElement | null>(null)
 const renderer = shallowRef<PlotRenderer | null>(null)
 const showLiveTrace = ref(true)
 const cursorReadout = ref<string | null>(null)
@@ -291,10 +292,16 @@ function handleMouseLeave(): void {
   cursorReadout.value = null
 }
 
+// Waterfall lives in a separate <canvas> (a sibling component slotted into
+// .below-canvas) — composite it in below the main plot when present/enabled,
+// rather than exporting only the FFT chart.
 function exportPng(): void {
   const canvas = canvasEl.value
   if (!canvas) return
-  canvas.toBlob((blob) => {
+  const waterfallCanvas = rootEl.value?.querySelector<HTMLCanvasElement>('.waterfall-container canvas') ?? null
+  const composite = waterfallCanvas ? compositeWithWaterfall(canvas, waterfallCanvas) : canvas
+
+  composite.toBlob((blob) => {
     if (!blob) return
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -303,6 +310,21 @@ function exportPng(): void {
     a.click()
     URL.revokeObjectURL(url)
   }, 'image/png')
+}
+
+function compositeWithWaterfall(main: HTMLCanvasElement, waterfall: HTMLCanvasElement): HTMLCanvasElement {
+  const dpr = window.devicePixelRatio || 1
+  const gapPx = Math.round(12 * dpr)
+  const out = document.createElement('canvas')
+  out.width = Math.max(main.width, waterfall.width)
+  out.height = main.height + gapPx + waterfall.height
+  const ctx = out.getContext('2d')
+  if (!ctx) return main
+  ctx.fillStyle = CHROME.surface
+  ctx.fillRect(0, 0, out.width, out.height)
+  ctx.drawImage(main, 0, 0)
+  ctx.drawImage(waterfall, 0, main.height + gapPx)
+  return out
 }
 
 onMounted(() => {
@@ -330,7 +352,7 @@ watchEffect(() => {
 </script>
 
 <template>
-  <div class="plot-canvas">
+  <div ref="rootEl" class="plot-canvas">
     <div ref="containerEl" class="canvas-container">
       <canvas ref="canvasEl" @mousedown="handleMouseDown" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave"></canvas>
       <div v-if="cursorReadout" class="cursor-readout">{{ cursorReadout }}</div>

@@ -9,7 +9,7 @@ export interface WaterfallRow {
 }
 
 const enabled = persistedRef('waterfall.enabled', false)
-const windowSeconds = persistedRef('waterfall.windowSeconds', 60)
+const windowSeconds = persistedRef('waterfall.windowSeconds', 20)
 const rows = shallowRef<WaterfallRow[]>([])
 
 // "Sensitivity": the dB range the color ramp is normalized against — independent of the
@@ -48,9 +48,10 @@ export function useWaterfall() {
     rows.value = []
   }
 
+  // Disabling just pauses ingestion (see ingest()) — the buffer survives a temporary
+  // toggle, and just ages out naturally against the window once re-enabled.
   function setEnabled(value: boolean): void {
     enabled.value = value
-    if (!value) clear()
   }
 
   // Re-evaluated against the *current* baseline/toggle state on every read, same as the
