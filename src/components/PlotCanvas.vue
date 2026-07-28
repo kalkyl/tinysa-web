@@ -291,6 +291,20 @@ function handleMouseLeave(): void {
   cursorReadout.value = null
 }
 
+function exportPng(): void {
+  const canvas = canvasEl.value
+  if (!canvas) return
+  canvas.toBlob((blob) => {
+    if (!blob) return
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `tinysa-plot-${new Date().toISOString().replace(/[:.]/g, '-')}.png`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, 'image/png')
+}
+
 onMounted(() => {
   if (!canvasEl.value || !containerEl.value) return
   renderer.value = new PlotRenderer(canvasEl.value)
@@ -321,48 +335,47 @@ watchEffect(() => {
       <canvas ref="canvasEl" @mousedown="handleMouseDown" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave"></canvas>
       <div v-if="cursorReadout" class="cursor-readout">{{ cursorReadout }}</div>
     </div>
-    <ul
-      v-if="legendEntries.length"
-      class="legend"
-      :style="{ paddingLeft: `${MARGIN.left}px`, paddingRight: `${MARGIN.right}px` }"
-    >
-      <li
-        v-for="entry in legendEntries"
-        :key="entry.label"
-        :class="{ dimmed: entry.dimmed || entry.visible === false }"
-        :title="entry.title"
-      >
-        <label v-if="entry.onToggle" class="legend-toggle">
-          <input type="checkbox" :checked="entry.visible" @change="entry.onToggle(($event.target as HTMLInputElement).checked)" />
-          <svg width="20" height="10" aria-hidden="true">
-            <line
-              x1="0"
-              y1="5"
-              x2="20"
-              y2="5"
-              :stroke="entry.color"
-              :stroke-width="entry.width"
-              :stroke-dasharray="entry.dash.join(',')"
-            />
-          </svg>
-          <span>{{ entry.label }}</span>
-        </label>
-        <template v-else>
-          <svg width="20" height="10" aria-hidden="true">
-            <line
-              x1="0"
-              y1="5"
-              x2="20"
-              y2="5"
-              :stroke="entry.color"
-              :stroke-width="entry.width"
-              :stroke-dasharray="entry.dash.join(',')"
-            />
-          </svg>
-          <span>{{ entry.label }}</span>
-        </template>
-      </li>
-    </ul>
+    <div class="legend-row" :style="{ paddingLeft: `${MARGIN.left}px`, paddingRight: `${MARGIN.right}px` }">
+      <ul v-if="legendEntries.length" class="legend">
+        <li
+          v-for="entry in legendEntries"
+          :key="entry.label"
+          :class="{ dimmed: entry.dimmed || entry.visible === false }"
+          :title="entry.title"
+        >
+          <label v-if="entry.onToggle" class="legend-toggle">
+            <input type="checkbox" :checked="entry.visible" @change="entry.onToggle(($event.target as HTMLInputElement).checked)" />
+            <svg width="20" height="10" aria-hidden="true">
+              <line
+                x1="0"
+                y1="5"
+                x2="20"
+                y2="5"
+                :stroke="entry.color"
+                :stroke-width="entry.width"
+                :stroke-dasharray="entry.dash.join(',')"
+              />
+            </svg>
+            <span>{{ entry.label }}</span>
+          </label>
+          <template v-else>
+            <svg width="20" height="10" aria-hidden="true">
+              <line
+                x1="0"
+                y1="5"
+                x2="20"
+                y2="5"
+                :stroke="entry.color"
+                :stroke-width="entry.width"
+                :stroke-dasharray="entry.dash.join(',')"
+              />
+            </svg>
+            <span>{{ entry.label }}</span>
+          </template>
+        </li>
+      </ul>
+      <button type="button" class="export-png" title="Export the plot as a PNG image" @click="exportPng">Export PNG</button>
+    </div>
   </div>
 </template>
 
@@ -399,6 +412,12 @@ canvas {
   border-radius: 3px;
   pointer-events: none;
 }
+.legend-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
 .legend {
   list-style: none;
   display: flex;
@@ -408,6 +427,11 @@ canvas {
   padding: 0;
   font-size: 0.8rem;
   color: var(--secondary-ink);
+}
+.export-png {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
 }
 .legend li {
   display: flex;
