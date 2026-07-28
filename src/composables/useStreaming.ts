@@ -22,6 +22,7 @@ export function useStreaming() {
     getRbw: () => RbwSetting,
     getInputMode: () => InputMode,
     getAttenuator: () => AttenuatorSetting,
+    getSpurReduction: () => boolean,
   ): Promise<void> {
     if (isStreaming.value) return
     const d = device.value
@@ -32,6 +33,7 @@ export function useStreaming() {
     let lastRbw: RbwSetting | undefined
     let lastInputMode: InputMode | undefined
     let lastAttenuator: AttenuatorSetting | undefined
+    let lastSpurReduction: boolean | undefined
 
     try {
       await d.pause()
@@ -50,6 +52,11 @@ export function useStreaming() {
         if (attenuator !== lastAttenuator) {
           await d.setAttenuator(attenuator)
           lastAttenuator = attenuator
+        }
+        const spurReduction = getSpurReduction()
+        if (spurReduction !== lastSpurReduction) {
+          await d.setSpurReduction(spurReduction)
+          lastSpurReduction = spurReduction
         }
         const frame = await d.scanRaw(getConfig())
         for (const cb of listeners) cb(frame)

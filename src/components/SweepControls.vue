@@ -11,7 +11,7 @@ import { convertFromDbm, convertToDbm } from '../plot/units'
 
 const { startHz, stopHz, rbw, points, sweepConfig, validationError } = useSweepConfig()
 const { state } = useSerialPort()
-const { inputMode, attenuator } = useInputSettings()
+const { inputMode, attenuator, spurReduction } = useInputSettings()
 const { isStreaming, streamError, start, stop } = useLiveMeasurement()
 const { auto: yAxisAuto, manualMinDbm, manualMaxDbm } = useYAxisRange()
 const { yAxisUnit } = useDisplayUnits()
@@ -78,7 +78,7 @@ async function toggleStreaming(): Promise<void> {
     return
   }
   try {
-    await start(() => sweepConfig.value, () => rbw.value, () => inputMode.value, () => attenuator.value)
+    await start(() => sweepConfig.value, () => rbw.value, () => inputMode.value, () => attenuator.value, () => spurReduction.value)
   } catch {
     // streamError surfaces the message; nothing else to do here.
   }
@@ -122,6 +122,14 @@ async function toggleStreaming(): Promise<void> {
       RBW (kHz)
       <input v-model.number="rbwKHz" type="number" step="0.1" min="0.1" @change="syncRbw" />
     </label>
+
+    <div class="checkbox-group">
+      <span class="spacer-label" aria-hidden="true">&nbsp;</span>
+      <label class="inline-checkbox" title="Shifts the IF to reduce spurious mixer products/images in the display (minor sweep-time cost).">
+        <input v-model="spurReduction" type="checkbox" />
+        Spur reduction
+      </label>
+    </div>
 
     <div class="checkbox-group">
       <span class="spacer-label" aria-hidden="true">&nbsp;</span>

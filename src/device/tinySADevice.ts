@@ -18,6 +18,7 @@ import {
   rbwCommand,
   scanRawCommand,
   SCANRAW_BYTES_PER_POINT,
+  spurCommand,
   stripEchoAndPrompt,
   sweepCommand,
 } from './protocolCodec'
@@ -106,6 +107,11 @@ export class TinySADevice {
   async getAttenuator(): Promise<number> {
     const text = await this.runAscii('attenuate')
     return parseAttenuateResponse(text)
+  }
+
+  /** Shifts the IF to reduce spurious mixer products/images in the display. Basic only accepts on/off (no "auto" — that's Ultra-only). */
+  async setSpurReduction(enabled: boolean): Promise<void> {
+    await this.runAscii(spurCommand(enabled))
   }
 
   async pause(): Promise<void> {

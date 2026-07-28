@@ -8,6 +8,7 @@ import {
   parseAttenuateResponse,
   parseFrequenciesResponse,
   parseSweepResponse,
+  spurCommand,
   stripEchoAndPrompt,
 } from './protocolCodec'
 import { ProtocolError } from './errors'
@@ -94,6 +95,13 @@ describe('parseAttenuateResponse', () => {
 
   it('throws ProtocolError on garbage', () => {
     expect(() => parseAttenuateResponse('not a number')).toThrow(ProtocolError)
+  })
+})
+
+describe('spurCommand', () => {
+  it('formats on/off (Basic has no "auto" — that is Ultra-only)', () => {
+    expect(spurCommand(true)).toBe('spur on')
+    expect(spurCommand(false)).toBe('spur off')
   })
 })
 

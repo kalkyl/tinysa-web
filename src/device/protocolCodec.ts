@@ -35,6 +35,11 @@ export function attenuateCommand(setting: AttenuatorSetting): string {
   return `attenuate ${setting}`
 }
 
+// tinySA Basic only accepts on|off (no "auto" — that's Ultra-only).
+export function spurCommand(enabled: boolean): string {
+  return `spur ${enabled ? 'on' : 'off'}`
+}
+
 // Querying `attenuate` with no argument always echoes a resolved dB value, even in
 // "auto" mode, on its own trailing line (after a repeated usage-hint line).
 export function parseAttenuateResponse(text: string): number {

@@ -10,6 +10,9 @@ const inputMode = persistedRef<InputMode>('device.inputMode', 'low')
 // noise floor for new users.
 const attenuatorAuto = persistedRef('device.attenuatorAuto', false)
 const attenuatorDb = persistedRef('device.attenuatorDb', 0)
+// Shifts the IF to reduce spurious mixer products/images — a real quality improvement
+// with only a minor sweep-time cost, so (unlike attenuator "auto") on is a sensible default.
+const spurReduction = persistedRef('device.spurReduction', true)
 
 /** What the device actually resolved "auto" (or the fixed setting) to — read back periodically while streaming. */
 const effectiveAttenuatorDb = shallowRef<number | null>(null)
@@ -54,5 +57,5 @@ export function useInputSettings() {
 
   const attenuator = computed<AttenuatorSetting>(() => (attenuatorAuto.value ? 'auto' : attenuatorDb.value))
 
-  return { inputMode, attenuatorAuto, attenuatorDb, attenuator, effectiveAttenuatorDb }
+  return { inputMode, attenuatorAuto, attenuatorDb, attenuator, effectiveAttenuatorDb, spurReduction }
 }

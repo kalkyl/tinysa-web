@@ -82,6 +82,12 @@ describe('TinySADevice + MockTransport', () => {
     expect(typeof autoResolved).toBe('number')
   })
 
+  it('sets spur reduction on the device', async () => {
+    const device = await TinySADevice.connect(new MockTransport())
+    await expect(device.setSpurReduction(true)).resolves.toBeUndefined()
+    await expect(device.setSpurReduction(false)).resolves.toBeUndefined()
+  })
+
   describe('timeout handling', () => {
     afterEach(() => {
       vi.useRealTimers()

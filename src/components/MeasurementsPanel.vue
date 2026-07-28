@@ -158,7 +158,7 @@ function formatTimestamp(ms: number): string {
           <p class="sweep-info">
             {{ formatFrequencyHz(m.sweep.startHz) }}–{{ formatFrequencyHz(m.sweep.stopHz) }} · {{ m.sweep.points }} pts ·
             {{ formatRbw(m.sweep.rbwKHz) }}
-            <template v-if="m.averagingWindowSize">· AVG {{ m.averagingWindowSize }}</template>
+            <span v-if="m.averagingWindowSize" class="nowrap">· AVG {{ m.averagingWindowSize }}</span>
           </p>
           <div class="overlay-toggles">
             <span class="overlay-toggles-label">Overlay:</span>
@@ -255,6 +255,9 @@ function formatTimestamp(ms: number): string {
   font-size: 0.75rem;
   color: var(--muted-ink);
   font-variant-numeric: tabular-nums;
+}
+.sweep-info .nowrap {
+  white-space: nowrap;
 }
 .overlay-toggles {
   display: flex;

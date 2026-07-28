@@ -14,6 +14,7 @@ interface MockState {
   inputMode: 'low' | 'high'
   attenuatorAuto: boolean
   attenuatorDb: number
+  spurReduction: boolean
 }
 
 // In-memory simulated tinySA Basic using the same byte framing real hardware uses.
@@ -27,6 +28,7 @@ export class MockTransport implements Transport {
     inputMode: 'low',
     attenuatorAuto: true,
     attenuatorDb: MOCK_AUTO_ATTENUATION_DB,
+    spurReduction: true,
   }
   private incoming = ''
   private outQueue: Uint8Array[] = []
@@ -82,6 +84,9 @@ export class MockTransport implements Transport {
         return
       case 'attenuate':
         this.handleAttenuate(args)
+        return
+      case 'spur':
+        this.handleSpur(args)
         return
       case 'pause':
         this.state.paused = true
@@ -151,6 +156,15 @@ export class MockTransport implements Transport {
       this.state.attenuatorDb = Number(args[0])
     }
     this.respond(`attenuate ${args.join(' ')}`, '')
+  }
+
+  private handleSpur(args: string[]): void {
+    if (args.length === 0) {
+      this.respond('spur', this.state.spurReduction ? 'on' : 'off')
+      return
+    }
+    if (args[0] === 'on' || args[0] === 'off') this.state.spurReduction = args[0] === 'on'
+    this.respond(`spur ${args.join(' ')}`, '')
   }
 
   private handleScanRaw(args: string[]): void {

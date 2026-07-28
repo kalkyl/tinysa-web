@@ -13,6 +13,7 @@ const SUPPORTED_COMMANDS = new Set([
   'mode',
   'level',
   'sweeptime',
+  'spur',
 ])
 
 /** tinySA Basic: the only fully-implemented and tested device profile. */
