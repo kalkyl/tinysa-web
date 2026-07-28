@@ -35,6 +35,12 @@ export function convertArrayUnit(values: Float64Array, from: YAxisUnit, to: YAxi
   return Float64Array.from(values, (v) => convertUnit(v, from, to))
 }
 
-export function formatAmplitude(value: number, unit: YAxisUnit): string {
+/**
+ * `isRelative` is for noise-floor-subtracted values: they're already a dB
+ * *delta*, not an absolute power, so the dBm/dBuV absolute-unit offset must
+ * not be applied to them (a delta is unit-invariant — see useNoiseFloor).
+ */
+export function formatAmplitude(value: number, unit: YAxisUnit, isRelative = false): string {
+  if (isRelative) return `${Math.round(value)} dB`
   return `${Math.round(value)} ${unit === 'dBuV' ? 'dBµV' : 'dBm'}`
 }

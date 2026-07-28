@@ -8,13 +8,13 @@ A browser-based control and visualization app for the tinySA Basic spectrum anal
 - **Sweep presets** — built-in EMC-band presets (full range, radiated low/mid/high band, conducted emissions) plus custom presets you can save/delete, stored locally.
 - **Peak hold** — running max per bin, toggled from the plot legend, with its own reset; auto-resets (with a notice) if the point count changes.
 - **Averaging** — rolling-window average of the live curve, with a configurable sweep count and its own reset.
-- **Noise floor subtraction** — capture a baseline curve and subtract it from the live trace.
+- **Noise floor subtraction** — capture an ambient/no-signal baseline and subtract it from the live trace, or check "Subtract" on a saved measurement in the Measurements list to compare against an earlier run instead (subtracts its live curve from your live trace, and its peak-hold curve from your peak-hold trace, together — so both stay on one consistent scale). Only enabled for measurements with a matching sweep range/point count. The active baseline persists across reloads.
 - **Calibration offset** — a single dB offset (antenna factor + cable loss) applied centrally before peak hold, plot, or save.
 - **Markers** — two draggable markers (click-and-drag on the plot, or type a frequency) with a Δfreq/ΔdB readout, plus a harmonic-frequency finder.
 - **Reference/limit lines** — built-in FCC Part 15 and CISPR 32 Class A/B templates (see disclaimer below) plus a custom breakpoint editor.
 - **Cursor readout** — hovering over the plot shows the frequency/amplitude under the pointer in the bottom-right corner.
 - **X/Y axis controls** — linear or log frequency axis, dBm or dBµV amplitude axis, manual or auto Y-axis range.
-- **Measurement storage** — save the live and/or peak-hold curve with a name and note (IndexedDB), overlay any saved curve back onto the live plot, and export/import as JSON or export a single measurement as CSV.
+- **Measurement storage** — save the live and/or peak-hold curve with a name and note (IndexedDB), including the sweep config and averaging state at the time (shown in the list); overlay any saved curve back onto the live plot, or subtract it as a noise-floor baseline; export/import as JSON or export a single measurement as CSV.
 
 ## Requirements
 

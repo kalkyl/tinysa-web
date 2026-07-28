@@ -13,6 +13,7 @@ function makeMeasurement(overrides: Partial<StoredMeasurement> = {}): StoredMeas
     deviceModel: 'tinysa-basic',
     sweep: { startHz: 88e6, stopHz: 108e6, points: 10, rbwKHz: 'auto' },
     calibrationOffsetDb: 0,
+    averagingWindowSize: null,
     frequenciesHz: Float64Array.from([88e6, 98e6, 108e6]),
     amplitudesDbm: Float64Array.from([-90, -80, -90]),
     peakHoldDbm: null,

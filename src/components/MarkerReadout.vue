@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useMarkers, type MarkerId } from '../composables/useMarkers'
 import { useLiveMeasurement } from '../composables/useLiveMeasurement'
 import { useDisplayUnits } from '../composables/useDisplayUnits'
+import { useNoiseFloor } from '../composables/useNoiseFloor'
 import { formatAmplitude, convertFromDbm } from '../plot/units'
 import { formatFrequencyHz } from '../plot/axes'
 import { nearestBinIndex } from '../utils/nearestBin'
@@ -11,11 +12,20 @@ import { findHarmonicBases } from '../utils/harmonicFinder'
 const { marker1, marker2, activeMarker, setActiveMarker, setEnabled, clear } = useMarkers()
 const { displayedFrame } = useLiveMeasurement()
 const { yAxisUnit } = useDisplayUnits()
+const noiseFloor = useNoiseFloor()
 
+const noiseFloorEnabled = computed(() => {
+  const frame = displayedFrame.value
+  return !!frame && noiseFloor.isSubtractionActive(frame.frequenciesHz)
+})
+
+// Noise-floor-subtracted values are a dB delta, not an absolute power — skip
+// the dBm<->dBuV absolute-unit offset for them (see useNoiseFloor).
 function amplitudeAt(freqHz: number): number | null {
   const frame = displayedFrame.value
   if (!frame || frame.frequenciesHz.length === 0) return null
-  return convertFromDbm(frame.amplitudesDbm[nearestBinIndex(frame.frequenciesHz, freqHz)], yAxisUnit.value)
+  const raw = frame.amplitudesDbm[nearestBinIndex(frame.frequenciesHz, freqHz)]
+  return noiseFloorEnabled.value ? raw : convertFromDbm(raw, yAxisUnit.value)
 }
 
 const rows = computed(() =>
@@ -29,7 +39,7 @@ const rows = computed(() =>
       freqHz: state.freqHz,
       amplitude,
       freqLabel: state.enabled ? formatFrequencyHz(state.freqHz) : '—',
-      ampLabel: state.enabled && amplitude !== null ? formatAmplitude(amplitude, yAxisUnit.value) : '—',
+      ampLabel: state.enabled && amplitude !== null ? formatAmplitude(amplitude, yAxisUnit.value, noiseFloorEnabled.value) : '—',
     }
   }),
 )
@@ -63,6 +73,7 @@ const harmonicCandidates = computed(() => {
         />
         {{ row.label }}
       </label>
+      <span class="readout">{{ row.freqLabel }}<template v-if="row.enabled">, {{ row.ampLabel }}</template></span>
       <label class="enabled-checkbox">
         <input
           type="checkbox"
@@ -70,13 +81,12 @@ const harmonicCandidates = computed(() => {
           @change="setEnabled(row.id, ($event.target as HTMLInputElement).checked)"
         />
       </label>
-      <span class="readout">{{ row.freqLabel }}<template v-if="row.enabled">, {{ row.ampLabel }}</template></span>
       <button type="button" :disabled="!row.enabled" @click="clear(row.id)">Clear</button>
     </div>
 
     <p v-if="delta" class="delta">
       Δ: {{ (delta.deltaFreqHz / 1e6).toFixed(3) }} MHz<template v-if="delta.deltaAmp !== null">
-        , {{ delta.deltaAmp >= 0 ? '+' : '' }}{{ delta.deltaAmp.toFixed(1) }} {{ yAxisUnit === 'dBuV' ? 'dBµV' : 'dBm' }}</template
+        , {{ delta.deltaAmp >= 0 ? '+' : '' }}{{ delta.deltaAmp.toFixed(1) }} {{ noiseFloorEnabled ? 'dB' : yAxisUnit === 'dBuV' ? 'dBµV' : 'dBm' }}</template
       >
     </p>
 

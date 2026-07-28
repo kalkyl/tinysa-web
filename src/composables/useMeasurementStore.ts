@@ -68,8 +68,13 @@ export function useMeasurementStore() {
     return visiblePeakOverlayIds.value.has(id)
   }
 
+  // The noise-floor ambient capture (see useNoiseFloor) is a measurement
+  // behind the scenes, but not one the user consciously saved — keep it out
+  // of the visible list and bulk exports.
+  const visibleMeasurements = computed(() => measurements.value.filter((m) => !m.isNoiseFloor))
+
   function exportAllJson(): string {
-    return JSON.stringify(toExportFile(measurements.value), null, 2)
+    return JSON.stringify(toExportFile(visibleMeasurements.value), null, 2)
   }
 
   function exportOneJson(id: string): string | null {
@@ -107,6 +112,7 @@ export function useMeasurementStore() {
 
   return {
     measurements,
+    visibleMeasurements,
     refresh,
     save,
     remove,

@@ -1,8 +1,10 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { v4 as uuidv4 } from 'uuid'
 import { interpolateLine, type Breakpoint } from '../utils/interpolate'
 import { computeFrequencyList } from '../utils/frequencyList'
+import { persistedRef } from '../utils/persistedRef'
 import { useSweepConfig } from './useSweepConfig'
+import { useSubtractModeActive } from './useSubtractMode'
 import { LIMIT_PRESETS } from '../data/limitPresets'
 import type { YAxisUnit } from '../plot/units'
 
@@ -23,21 +25,23 @@ export interface ReferenceSeries {
 
 const SAMPLE_POINTS = 200
 
-const enabledPresetIds = ref<Set<string>>(new Set())
-const customLines = ref<CustomLimitLine[]>([])
+const enabledPresetIds = persistedRef<string[]>('referenceLines.enabledPresetIds', [])
+const customLines = persistedRef<CustomLimitLine[]>('referenceLines.customLines', [])
 
 export function useReferenceLines() {
   const { sweepConfig } = useSweepConfig()
+  const subtractModeActive = useSubtractModeActive()
 
   function togglePreset(id: string, enabled: boolean): void {
-    const next = new Set(enabledPresetIds.value)
-    if (enabled) next.add(id)
-    else next.delete(id)
-    enabledPresetIds.value = next
+    if (enabled) {
+      if (!enabledPresetIds.value.includes(id)) enabledPresetIds.value = [...enabledPresetIds.value, id]
+    } else {
+      enabledPresetIds.value = enabledPresetIds.value.filter((x) => x !== id)
+    }
   }
 
   function isPresetEnabled(id: string): boolean {
-    return enabledPresetIds.value.has(id)
+    return enabledPresetIds.value.includes(id)
   }
 
   function addCustomLine(name: string, unit: YAxisUnit, breakpoints: Breakpoint[]): void {
@@ -48,13 +52,17 @@ export function useReferenceLines() {
     customLines.value = customLines.value.filter((line) => line.id !== id)
   }
 
+  // Reference lines are drawn in absolute dBm/dBuV — the wrong scale while
+  // the live trace is a relative dB delta. Selections themselves aren't
+  // touched, just not rendered, so they reappear the moment subtraction ends.
   const activeReferenceSeries = computed<ReferenceSeries[]>(() => {
+    if (subtractModeActive.value) return []
     const cfg = sweepConfig.value
     const freqSamples = computeFrequencyList(cfg.startHz, cfg.stopHz, SAMPLE_POINTS)
     const series: ReferenceSeries[] = []
 
     for (const preset of LIMIT_PRESETS) {
-      if (enabledPresetIds.value.has(preset.id)) {
+      if (enabledPresetIds.value.includes(preset.id)) {
         series.push({
           id: preset.id,
           label: preset.name,
@@ -84,5 +92,6 @@ export function useReferenceLines() {
     addCustomLine,
     removeCustomLine,
     activeReferenceSeries,
+    subtractModeActive,
   }
 }

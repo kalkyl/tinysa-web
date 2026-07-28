@@ -1,7 +1,8 @@
 import { ref, shallowRef } from 'vue'
 import { updatePeak } from '../utils/peakHold'
+import { persistedRef } from '../utils/persistedRef'
 
-const enabled = ref(true)
+const enabled = persistedRef('peakHold.enabled', true)
 const peakAmplitudesDbm = shallowRef<Float64Array | null>(null)
 const peakFrequenciesHz = shallowRef<Float64Array | null>(null)
 const wasResetByBinCountChange = ref(false)

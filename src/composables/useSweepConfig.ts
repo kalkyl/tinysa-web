@@ -1,12 +1,13 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useDeviceCapabilities } from './useDeviceCapabilities'
 import { formatFrequencyHz } from '../plot/axes'
+import { persistedRef } from '../utils/persistedRef'
 import type { RbwSetting, SweepConfig } from '../types/protocol'
 
-const startHz = ref(88_000_000)
-const stopHz = ref(108_000_000)
-const rbw = ref<RbwSetting>('auto')
-const points = ref(450)
+const startHz = persistedRef('sweep.startHz', 88_000_000)
+const stopHz = persistedRef('sweep.stopHz', 108_000_000)
+const rbw = persistedRef<RbwSetting>('sweep.rbw', 'auto')
+const points = persistedRef('sweep.points', 450)
 
 export function useSweepConfig() {
   const { freqRangeHz, rbwRangeKHz, maxPoints } = useDeviceCapabilities()

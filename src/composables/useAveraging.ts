@@ -1,8 +1,9 @@
-import { ref, shallowRef } from 'vue'
+import { shallowRef } from 'vue'
 import { computeAverage } from '../utils/averaging'
+import { persistedRef } from '../utils/persistedRef'
 
-const enabled = ref(false)
-const windowSize = ref(10)
+const enabled = persistedRef('averaging.enabled', false)
+const windowSize = persistedRef('averaging.windowSize', 10)
 const buffer = shallowRef<Float64Array[]>([])
 const averagedFrequenciesHz = shallowRef<Float64Array | null>(null)
 const averagedAmplitudesDbm = shallowRef<Float64Array | null>(null)

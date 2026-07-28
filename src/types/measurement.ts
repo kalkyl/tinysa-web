@@ -18,10 +18,14 @@ export interface StoredMeasurement {
   deviceModel: DeviceModelId | 'unknown'
   sweep: StoredSweepConfig
   calibrationOffsetDb: number
+  /** Sweep count of the averaging window if averaging was on when saved, else null. */
+  averagingWindowSize: number | null
   frequenciesHz: Float64Array
   /** Already calibration-applied, in dBm. */
   amplitudesDbm: Float64Array
   peakHoldDbm: Float64Array | null
+  /** An ambient/no-signal snapshot captured via "Capture now" (see useNoiseFloor) rather than a measurement the user named — kept out of the visible list and exports. */
+  isNoiseFloor?: boolean
 }
 
 export interface ExportedMeasurementV1 {
@@ -34,9 +38,11 @@ export interface ExportedMeasurementV1 {
   deviceModel: DeviceModelId | 'unknown'
   sweep: StoredSweepConfig
   calibrationOffsetDb: number
+  averagingWindowSize: number | null
   frequenciesHz: number[]
   amplitudesDbm: number[]
   peakHoldDbm: number[] | null
+  isNoiseFloor?: boolean
 }
 
 export interface ExportFileV1 {

@@ -32,10 +32,12 @@ export interface PlotRange {
 
 export interface PlotDrawInput {
   freqRangeHz: PlotRange
-  /** Already converted to yAxisUnit. */
+  /** Already converted to yAxisUnit (unless amplitudeIsRelative). */
   yRange: PlotRange
   xAxisScale: XAxisScale
   yAxisUnit: YAxisUnit
+  /** Noise-floor-subtracted values are a dB delta, not an absolute power — see formatAmplitude. */
+  amplitudeIsRelative?: boolean
   series: PlotSeries[]
   markers: PlotMarkerPoint[]
 }
@@ -141,7 +143,7 @@ export class PlotRenderer {
     ctx.restore()
 
     for (const marker of input.markers) {
-      this.drawMarker(ctx, marker, chrome, xScale, yScale, plotTop, plotBottom, input.yAxisUnit)
+      this.drawMarker(ctx, marker, chrome, xScale, yScale, plotTop, plotBottom, input.yAxisUnit, input.amplitudeIsRelative)
     }
 
     ctx.restore()
@@ -204,7 +206,7 @@ export class PlotRenderer {
       ctx.stroke()
       // Right-aligned text can push a wide label's leading '-' past x=0 and
       // off the canvas; measure and clamp so the full label always stays on-screen.
-      const label = formatAmplitude(value, input.yAxisUnit)
+      const label = formatAmplitude(value, input.yAxisUnit, input.amplitudeIsRelative)
       const textWidth = ctx.measureText(label).width
       const x = Math.max(2, plotLeft - 8 - textWidth)
       ctx.textAlign = 'left'
@@ -251,6 +253,7 @@ export class PlotRenderer {
     plotTop: number,
     plotBottom: number,
     yAxisUnit: YAxisUnit,
+    amplitudeIsRelative: boolean | undefined,
   ): void {
     const x = xScale(marker.freqHz)
 
@@ -275,7 +278,7 @@ export class PlotRenderer {
       ctx.fill()
     }
 
-    const label = `${marker.label}: ${formatFrequencyHz(marker.freqHz)}${marker.amplitude !== null ? `, ${formatAmplitude(marker.amplitude, yAxisUnit)}` : ''}`
+    const label = `${marker.label}: ${formatFrequencyHz(marker.freqHz)}${marker.amplitude !== null ? `, ${formatAmplitude(marker.amplitude, yAxisUnit, amplitudeIsRelative)}` : ''}`
     ctx.font = '11px system-ui, sans-serif'
     const textWidth = ctx.measureText(label).width
     const labelX = Math.min(Math.max(x + 6, 4), ctx.canvas.width / this.dpr - textWidth - 10)

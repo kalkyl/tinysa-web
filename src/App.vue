@@ -2,8 +2,8 @@
 import ConnectionPanel from './components/ConnectionPanel.vue'
 import SweepControls from './components/SweepControls.vue'
 import CalibrationControl from './components/CalibrationControl.vue'
-import PeakHoldControls from './components/PeakHoldControls.vue'
 import AveragingControls from './components/AveragingControls.vue'
+import PeakHoldControls from './components/PeakHoldControls.vue'
 import NoiseFloorControls from './components/NoiseFloorControls.vue'
 import MarkerReadout from './components/MarkerReadout.vue'
 import PlotCanvas from './components/PlotCanvas.vue'
@@ -20,8 +20,8 @@ import MeasurementsPanel from './components/MeasurementsPanel.vue'
     </div>
     <div class="side-controls">
       <CalibrationControl />
-      <PeakHoldControls />
       <AveragingControls />
+      <PeakHoldControls />
       <NoiseFloorControls />
       <MarkerReadout />
     </div>

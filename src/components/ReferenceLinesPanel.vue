@@ -4,7 +4,7 @@ import { useReferenceLines } from '../composables/useReferenceLines'
 import { LIMIT_PRESET_DISCLAIMER } from '../data/limitPresets'
 import CustomLimitLineEditor from './CustomLimitLineEditor.vue'
 
-const { presets, isPresetEnabled, togglePreset, customLines, removeCustomLine } = useReferenceLines()
+const { presets, isPresetEnabled, togglePreset, customLines, removeCustomLine, subtractModeActive } = useReferenceLines()
 const showEditor = ref(false)
 </script>
 
@@ -13,21 +13,26 @@ const showEditor = ref(false)
     <legend>Reference lines</legend>
 
     <ul class="preset-list">
-      <li v-for="preset in presets" :key="preset.id" :title="preset.disclaimer">
+      <li
+        v-for="preset in presets"
+        :key="preset.id"
+        :title="subtractModeActive ? 'Not shown while subtracting (wrong scale)' : preset.disclaimer"
+      >
         <label>
           <input
             type="checkbox"
+            :disabled="subtractModeActive"
             :checked="isPresetEnabled(preset.id)"
             @change="togglePreset(preset.id, ($event.target as HTMLInputElement).checked)"
           />
-          {{ preset.name }}
+          <span :class="{ disabled: subtractModeActive }">{{ preset.name }}</span>
         </label>
       </li>
     </ul>
 
     <ul v-if="customLines.length" class="custom-list">
-      <li v-for="line in customLines" :key="line.id">
-        <span>{{ line.name }} ({{ line.unit }})</span>
+      <li v-for="line in customLines" :key="line.id" :title="subtractModeActive ? 'Not shown while subtracting (wrong scale)' : ''">
+        <span :class="{ disabled: subtractModeActive }">{{ line.name }} ({{ line.unit }})</span>
         <button type="button" @click="removeCustomLine(line.id)">Remove</button>
       </li>
     </ul>
@@ -68,5 +73,8 @@ const showEditor = ref(false)
   align-items: center;
   justify-content: space-between;
   font-size: 0.8rem;
+}
+span.disabled {
+  opacity: 0.5;
 }
 </style>

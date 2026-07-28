@@ -24,29 +24,43 @@ export function useLiveMeasurement() {
     streaming.onFrame((frame) => {
       const offsetApplied = calibration.applyOffset(frame.amplitudesDbm)
       preSubtractionFrame.value = { frequenciesHz: frame.frequenciesHz, amplitudesDbm: offsetApplied, timestampMs: frame.timestampMs }
-
-      const amplitudesDbm = noiseFloor.applySubtraction(offsetApplied)
-      calibratedFrame.value = { frequenciesHz: frame.frequenciesHz, amplitudesDbm, timestampMs: frame.timestampMs }
-      peakHold.ingest(frame.frequenciesHz, amplitudesDbm)
-      averaging.ingest(frame.frequenciesHz, amplitudesDbm)
+      calibratedFrame.value = { frequenciesHz: frame.frequenciesHz, amplitudesDbm: offsetApplied, timestampMs: frame.timestampMs }
+      // Peak hold and averaging both accumulate the raw calibrated signal —
+      // noise-floor subtraction is applied to each trace independently, at
+      // display time, so live/peak can each have their own baseline.
+      peakHold.ingest(frame.frequenciesHz, offsetApplied)
+      averaging.ingest(frame.frequenciesHz, offsetApplied)
     })
   }
 
-  // What "Live" shows: the averaged curve when averaging is on, else the raw calibrated frame.
+  // What "Live" shows: the averaged curve when averaging is on, else the raw
+  // calibrated frame — with the 'live' noise-floor baseline subtracted.
   const displayedFrame = computed<ScanRawFrame | null>(() => {
-    if (averaging.enabled.value && averaging.averagedFrequenciesHz.value && averaging.averagedAmplitudesDbm.value) {
-      return {
-        frequenciesHz: averaging.averagedFrequenciesHz.value,
-        amplitudesDbm: averaging.averagedAmplitudesDbm.value,
-        timestampMs: calibratedFrame.value?.timestampMs ?? Date.now(),
-      }
-    }
-    return calibratedFrame.value
+    const base =
+      averaging.enabled.value && averaging.averagedFrequenciesHz.value && averaging.averagedAmplitudesDbm.value
+        ? {
+            frequenciesHz: averaging.averagedFrequenciesHz.value,
+            amplitudesDbm: averaging.averagedAmplitudesDbm.value,
+            timestampMs: calibratedFrame.value?.timestampMs ?? Date.now(),
+          }
+        : calibratedFrame.value
+    if (!base) return null
+    return { ...base, amplitudesDbm: noiseFloor.applySubtraction('live', base.frequenciesHz, base.amplitudesDbm) }
+  })
+
+  // What "Peak hold" shows: the raw running max, with the 'peak' noise-floor
+  // baseline subtracted. peakHold.peakAmplitudesDbm itself stays raw/absolute
+  // (e.g. for saving a measurement) — this is a display-only view.
+  const displayedPeakAmplitudesDbm = computed<Float64Array | null>(() => {
+    const frequenciesHz = peakHold.peakFrequenciesHz.value
+    const amplitudesDbm = peakHold.peakAmplitudesDbm.value
+    if (!frequenciesHz || !amplitudesDbm) return amplitudesDbm
+    return noiseFloor.applySubtraction('peak', frequenciesHz, amplitudesDbm)
   })
 
   // Not spreading averaging/noiseFloor: both have an `enabled` ref, and
   // averaging/peakHold both have `reset()` — would silently clobber each
   // other. Call useAveraging()/useNoiseFloor() directly for those (same
   // singleton state).
-  return { ...streaming, ...calibration, ...peakHold, calibratedFrame, preSubtractionFrame, displayedFrame }
+  return { ...streaming, ...calibration, ...peakHold, calibratedFrame, preSubtractionFrame, displayedFrame, displayedPeakAmplitudesDbm }
 }

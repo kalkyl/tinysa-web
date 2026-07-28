@@ -1,7 +1,7 @@
-import { ref } from 'vue'
+import { persistedRef } from '../utils/persistedRef'
 
 /** dB offset (e.g. antenna factor + cable loss) applied to every amplitude before display/peak-hold/save. */
-const calibrationOffsetDb = ref(0)
+const calibrationOffsetDb = persistedRef('calibrationOffsetDb', 0)
 
 export function useCalibrationOffset() {
   function applyOffset(amplitudesDbm: Float64Array): Float64Array {

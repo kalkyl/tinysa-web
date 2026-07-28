@@ -1,9 +1,10 @@
-import { ref, shallowRef } from 'vue'
+import { shallowRef } from 'vue'
+import { persistedRef } from '../utils/persistedRef'
 import type { PlotRange } from '../plot/PlotRenderer'
 
-const auto = ref(true)
-const manualMinDbm = ref(-110)
-const manualMaxDbm = ref(0)
+const auto = persistedRef('yAxis.auto', true)
+const manualMinDbm = persistedRef('yAxis.manualMinDbm', -110)
+const manualMaxDbm = persistedRef('yAxis.manualMaxDbm', 0)
 
 // Only recomputes when data breaches the current bounds (not every sweep) to avoid axis jitter.
 const committedAutoRange = shallowRef<PlotRange | null>(null)
@@ -11,19 +12,23 @@ const MIN_PADDING_DB = 5
 const PADDING_FRACTION = 0.15
 
 export function useYAxisRange() {
-  function computeRange(amplitudesDbm: Float64Array | null): PlotRange {
+  /** Accepts every curve currently on the plot (live, peak hold, ...) so none of them can sit outside the auto-fitted range. */
+  function computeRange(...amplitudeArrays: (Float64Array | null)[]): PlotRange {
     if (!auto.value) {
       return { min: manualMinDbm.value, max: manualMaxDbm.value }
-    }
-    if (!amplitudesDbm || amplitudesDbm.length === 0) {
-      return committedAutoRange.value ?? { min: manualMinDbm.value, max: manualMaxDbm.value }
     }
 
     let dataMin = Infinity
     let dataMax = -Infinity
-    for (const v of amplitudesDbm) {
-      if (v < dataMin) dataMin = v
-      if (v > dataMax) dataMax = v
+    for (const amplitudesDbm of amplitudeArrays) {
+      if (!amplitudesDbm) continue
+      for (const v of amplitudesDbm) {
+        if (v < dataMin) dataMin = v
+        if (v > dataMax) dataMax = v
+      }
+    }
+    if (dataMin === Infinity) {
+      return committedAutoRange.value ?? { min: manualMinDbm.value, max: manualMaxDbm.value }
     }
 
     const current = committedAutoRange.value

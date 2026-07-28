@@ -13,6 +13,7 @@ function makeMeasurement(id: string): StoredMeasurement {
     deviceModel: 'tinysa-basic',
     sweep: { startHz: 88e6, stopHz: 108e6, points: 3, rbwKHz: 'auto' },
     calibrationOffsetDb: 6,
+    averagingWindowSize: 10,
     frequenciesHz: Float64Array.from([88e6, 98e6, 108e6]),
     amplitudesDbm: Float64Array.from([-90, -80, -90]),
     peakHoldDbm: Float64Array.from([-85, -75, -85]),
@@ -33,6 +34,15 @@ describe('toExportFile / fromExportFile round trip', () => {
     expect(Array.from(imported[0].frequenciesHz)).toEqual([88e6, 98e6, 108e6])
     expect(Array.from(imported[0].amplitudesDbm)).toEqual([-90, -80, -90])
     expect(imported[0].peakHoldDbm && Array.from(imported[0].peakHoldDbm)).toEqual([-85, -75, -85])
+    expect(imported[0].averagingWindowSize).toBe(10)
+  })
+
+  it('defaults averagingWindowSize to null for exports predating that field', () => {
+    const exported = toExportFile([makeMeasurement('id3')])
+    const { averagingWindowSize, ...withoutField } = exported.measurements[0]
+    void averagingWindowSize
+    const imported = fromExportFile({ ...exported, measurements: [withoutField] })
+    expect(imported[0].averagingWindowSize).toBeNull()
   })
 
   it('handles a null peakHoldDbm', () => {

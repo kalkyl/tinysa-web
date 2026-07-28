@@ -19,9 +19,16 @@ const exportedMeasurementSchema = z.object({
   deviceModel: z.enum(['tinysa-basic', 'tinysa-ultra', 'unknown']),
   sweep: sweepSchema,
   calibrationOffsetDb: z.number(),
+  // Older exports predate this field — default to "no averaging" rather than rejecting the file.
+  averagingWindowSize: z
+    .number()
+    .nullable()
+    .optional()
+    .transform((v) => v ?? null),
   frequenciesHz: z.array(z.number()),
   amplitudesDbm: z.array(z.number()),
   peakHoldDbm: z.array(z.number()).nullable(),
+  isNoiseFloor: z.boolean().optional(),
 })
 
 const exportFileSchema = z.object({

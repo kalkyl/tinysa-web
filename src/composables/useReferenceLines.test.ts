@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { useReferenceLines } from './useReferenceLines'
 import { useSweepConfig } from './useSweepConfig'
+import { useNoiseFloor } from './useNoiseFloor'
+import { useMeasurementStore } from './useMeasurementStore'
+import { computeFrequencyList } from '../utils/frequencyList'
+import type { StoredMeasurement } from '../types/measurement'
 
 describe('useReferenceLines', () => {
   it('starts with no presets enabled and no custom lines', () => {
@@ -41,5 +45,44 @@ describe('useReferenceLines', () => {
     removeCustomLine(added.id)
     expect(customLines.value.some((l) => l.id === added.id)).toBe(false)
     expect(activeReferenceSeries.value.some((s) => s.id === added.id)).toBe(false)
+  })
+
+  it('hides all reference lines while subtracting, without touching the underlying selection', async () => {
+    const { sweepConfig } = useSweepConfig()
+    const { presets, togglePreset, activeReferenceSeries, isPresetEnabled } = useReferenceLines()
+    const { setSource, setEnabled } = useNoiseFloor()
+    const { save } = useMeasurementStore()
+    const preset = presets[0]
+    togglePreset(preset.id, true)
+    expect(activeReferenceSeries.value.length).toBeGreaterThan(0)
+
+    const cfg = sweepConfig.value
+    const frequenciesHz = computeFrequencyList(cfg.startHz, cfg.stopHz, cfg.points)
+    const source: StoredMeasurement = {
+      id: 'ref-lines-src',
+      schemaVersion: 1,
+      name: 'Baseline',
+      note: '',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      deviceModel: 'unknown',
+      sweep: { ...cfg, rbwKHz: 'auto' },
+      calibrationOffsetDb: 0,
+      averagingWindowSize: null,
+      frequenciesHz,
+      amplitudesDbm: new Float64Array(frequenciesHz.length).fill(-90),
+      peakHoldDbm: null,
+    }
+    await save(source)
+    setSource('ref-lines-src')
+    setEnabled(true)
+
+    expect(activeReferenceSeries.value).toEqual([])
+    expect(isPresetEnabled(preset.id)).toBe(true) // selection itself is untouched
+
+    setSource(null)
+    setEnabled(false)
+    expect(activeReferenceSeries.value.length).toBeGreaterThan(0)
+    togglePreset(preset.id, false)
   })
 })

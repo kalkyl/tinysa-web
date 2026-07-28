@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { useDisplayUnits } from '../composables/useDisplayUnits'
+import { useSubtractModeActive } from '../composables/useSubtractMode'
 import { MARGIN } from '../plot/PlotRenderer'
 
 const { xAxisScale, yAxisUnit } = useDisplayUnits()
+
+// While subtracting, the live/peak curves are a relative dB delta, not an
+// absolute power — a dBm/dBuV choice has nothing to apply to, so hide it
+// rather than show a selector that does nothing.
+const subtractModeActive = useSubtractModeActive()
 </script>
 
 <template>
@@ -13,7 +19,7 @@ const { xAxisScale, yAxisUnit } = useDisplayUnits()
       <label class="radio"><input v-model="xAxisScale" type="radio" value="linear" /> Linear</label>
       <label class="radio"><input v-model="xAxisScale" type="radio" value="log" /> Log</label>
     </div>
-    <div class="radio-group">
+    <div v-if="!subtractModeActive" class="radio-group">
       <span class="group-label">Y-axis unit</span>
       <label class="radio"><input v-model="yAxisUnit" type="radio" value="dBm" /> dBm</label>
       <label class="radio"><input v-model="yAxisUnit" type="radio" value="dBuV" /> dBµV</label>

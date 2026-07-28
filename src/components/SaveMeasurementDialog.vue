@@ -5,12 +5,14 @@ import { useMeasurementStore } from '../composables/useMeasurementStore'
 import { useLiveMeasurement } from '../composables/useLiveMeasurement'
 import { useSweepConfig } from '../composables/useSweepConfig'
 import { useSerialPort } from '../composables/useSerialPort'
+import { useAveraging } from '../composables/useAveraging'
 import type { StoredMeasurement } from '../types/measurement'
 
 const { save } = useMeasurementStore()
 const { displayedFrame, peakFrequenciesHz, peakAmplitudesDbm, calibrationOffsetDb } = useLiveMeasurement()
 const { sweepConfig, rbw } = useSweepConfig()
 const { device } = useSerialPort()
+const { enabled: averagingEnabled, windowSize: averagingWindowSize } = useAveraging()
 
 const name = ref('')
 const note = ref('')
@@ -34,6 +36,7 @@ async function submit(): Promise<void> {
       deviceModel: device.value?.profile.id ?? 'unknown',
       sweep: { ...sweepConfig.value, rbwKHz: rbw.value },
       calibrationOffsetDb: calibrationOffsetDb.value,
+      averagingWindowSize: averagingEnabled.value ? averagingWindowSize.value : null,
       frequenciesHz: frame.frequenciesHz,
       amplitudesDbm: frame.amplitudesDbm,
       peakHoldDbm: peakFrequenciesHz.value && peakAmplitudesDbm.value ? peakAmplitudesDbm.value : null,
