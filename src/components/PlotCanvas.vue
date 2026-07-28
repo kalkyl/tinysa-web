@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch, watchEffect } from 'vue'
-import { MARGIN, PlotRenderer, type PlotDrawInput, type PlotMarkerPoint, type PlotSeries } from '../plot/PlotRenderer'
+import {
+  MARGIN,
+  PlotRenderer,
+  type PlotDrawInput,
+  type PlotHorizontalLine,
+  type PlotHoverCrosshair,
+  type PlotMarkerPoint,
+  type PlotSeries,
+} from '../plot/PlotRenderer'
 import { categoricalColor, CHROME, LIVE_TRACE_SLOT, OVERLAY_SLOT_START, PEAK_HOLD_SLOT } from '../plot/colors'
-import { convertArrayFromDbm, convertArrayUnit, convertFromDbm, formatAmplitude } from '../plot/units'
+import { convertArrayFromDbm, convertArrayUnit, convertFromDbm, convertToDbm, formatAmplitude } from '../plot/units'
 import { formatFrequencyHz } from '../plot/axes'
 import { useLiveMeasurement } from '../composables/useLiveMeasurement'
 import { useSweepConfig } from '../composables/useSweepConfig'
@@ -13,6 +21,7 @@ import { useMarkers, type MarkerId } from '../composables/useMarkers'
 import { useMeasurementStore } from '../composables/useMeasurementStore'
 import { useAveraging } from '../composables/useAveraging'
 import { useNoiseFloor } from '../composables/useNoiseFloor'
+import { useHorizontalMarkers } from '../composables/useHorizontalMarkers'
 import { nearestBinIndex } from '../utils/nearestBin'
 import type { YAxisUnit } from '../plot/units'
 
@@ -21,6 +30,8 @@ const containerEl = ref<HTMLDivElement | null>(null)
 const rootEl = ref<HTMLDivElement | null>(null)
 const renderer = shallowRef<PlotRenderer | null>(null)
 const showLiveTrace = ref(true)
+const canvasCursor = ref<'crosshair' | 'ns-resize' | 'ew-resize'>('crosshair')
+const canvasTitle = ref('')
 const cursorReadout = ref<string | null>(null)
 
 const {
@@ -34,11 +45,15 @@ const { sweepConfig } = useSweepConfig()
 const { computeRange, resetAutoRange } = useYAxisRange()
 const { xAxisScale, yAxisUnit } = useDisplayUnits()
 const { activeReferenceSeries } = useReferenceLines()
-const { activeMarker, markerPoints, placeActiveMarkerAt, setMarkerFreq, setActiveMarker } = useMarkers()
+const { activeMarker, markerPoints, placeActiveMarkerAt, setMarkerFreq, setActiveMarker, setEnabled } = useMarkers()
 let draggingMarkerId: MarkerId | null = null
+// Plain (non-reactive) — updated directly by the mouse handlers, which call redraw()
+// themselves, rather than adding a ref that reruns the whole watchEffect on every pixel of movement.
+let hoverCrosshair: PlotHoverCrosshair | null = null
 const { overlaySeries } = useMeasurementStore()
 const { enabled: averagingEnabled } = useAveraging()
 const noiseFloor = useNoiseFloor()
+const horizontalMarkers = useHorizontalMarkers()
 
 let resizeObserver: ResizeObserver | null = null
 
@@ -152,6 +167,17 @@ const currentYRange = computed(() => {
   return { min: convertFromDbm(dbmRange.min, unit), max: convertFromDbm(dbmRange.max, unit) }
 })
 
+// Stored as absolute dBm — meaningless as a delta, so hidden while subtracting (same
+// "wrong scale" reasoning as reference lines/overlays/the unit selector).
+const horizontalLinesForDraw = computed<PlotHorizontalLine[]>(() => {
+  if (liveIsRelative.value) return []
+  const unit = yAxisUnit.value
+  return horizontalMarkers.markers.value.map((m) => {
+    const value = convertFromDbm(m.valueDbm, unit)
+    return { value, label: formatAmplitude(value, unit, false) }
+  })
+})
+
 function buildDrawInput(): PlotDrawInput | null {
   const frame = displayedFrame.value
   const cfg = sweepConfig.value
@@ -190,13 +216,25 @@ function buildDrawInput(): PlotDrawInput | null {
     })
   })
 
+  // The level dot only makes sense pinned to a visible curve — when Live is hidden there's
+  // nothing on-screen for it to mark, so the label falls back to frequency-only.
   const markers: PlotMarkerPoint[] = markerPoints.value.map((m) => ({
     freqHz: m.freqHz,
-    amplitude: nearestAmplitude(frame, m.freqHz, unit, isRelative),
+    amplitude: showLiveTrace.value ? nearestAmplitude(frame, m.freqHz, unit, isRelative) : null,
     label: m.label,
   }))
 
-  return { freqRangeHz, yRange, xAxisScale: xAxisScale.value, yAxisUnit: unit, amplitudeIsRelative: isRelative, series, markers }
+  return {
+    freqRangeHz,
+    yRange,
+    xAxisScale: xAxisScale.value,
+    yAxisUnit: unit,
+    amplitudeIsRelative: isRelative,
+    series,
+    markers,
+    horizontalLines: horizontalLinesForDraw.value,
+    hoverCrosshair,
+  }
 }
 
 function nearestAmplitude(
@@ -228,6 +266,11 @@ function xCssFromEvent(ev: MouseEvent, canvas: HTMLCanvasElement): number {
   return Math.min(Math.max(ev.clientX - rect.left, 0), rect.width)
 }
 
+function yCssFromEvent(ev: MouseEvent, canvas: HTMLCanvasElement): number {
+  const rect = canvas.getBoundingClientRect()
+  return Math.min(Math.max(ev.clientY - rect.top, 0), rect.height)
+}
+
 function hitTestMarker(r: PlotRenderer, xCss: number): MarkerId | null {
   const input = freqRangeInput()
   let best: MarkerId | null = null
@@ -242,11 +285,93 @@ function hitTestMarker(r: PlotRenderer, xCss: number): MarkerId | null {
   return best
 }
 
+const HORIZONTAL_MARKER_HIT_TOLERANCE_PX = 6
+
+function hitTestHorizontalMarker(r: PlotRenderer, yCss: number): string | null {
+  const unit = yAxisUnit.value
+  for (const m of horizontalMarkers.markers.value) {
+    const y = r.valueToYPixel(convertFromDbm(m.valueDbm, unit), { yRange: currentYRange.value })
+    if (Math.abs(y - yCss) <= HORIZONTAL_MARKER_HIT_TOLERANCE_PX) return m.id
+  }
+  return null
+}
+
+// Left-click always adds (empty margin) or drags (existing line) — delete is a separate
+// right-click gesture (handleContextMenu), so there's no click-vs-drag ambiguity to
+// resolve here. A mousedown on empty margin space adds a new line immediately and starts
+// dragging it too, so it can be fine-tuned in the same gesture (mirrors
+// placeActiveMarkerAt's behavior for M1/M2).
+let horizontalDragId: string | null = null
+
+function handleYAxisMouseDown(yCss: number): void {
+  if (liveIsRelative.value) return
+  const r = renderer.value
+  if (!r) return
+  const hitId = hitTestHorizontalMarker(r, yCss)
+  if (hitId) {
+    horizontalDragId = hitId
+  } else {
+    const displayValue = r.yPixelToValue(yCss, { yRange: currentYRange.value })
+    horizontalDragId = horizontalMarkers.add(convertToDbm(displayValue, yAxisUnit.value))
+  }
+  window.addEventListener('mousemove', handleWindowMouseMoveHorizontal)
+  window.addEventListener('mouseup', handleWindowMouseUpHorizontal)
+}
+
+function handleWindowMouseMoveHorizontal(ev: MouseEvent): void {
+  const r = renderer.value
+  const canvas = canvasEl.value
+  if (!r || !canvas || !horizontalDragId) return
+  const yCss = yCssFromEvent(ev, canvas)
+  const displayValue = r.yPixelToValue(yCss, { yRange: currentYRange.value })
+  horizontalMarkers.setValue(horizontalDragId, convertToDbm(displayValue, yAxisUnit.value))
+}
+
+function handleWindowMouseUpHorizontal(): void {
+  horizontalDragId = null
+  window.removeEventListener('mousemove', handleWindowMouseMoveHorizontal)
+  window.removeEventListener('mouseup', handleWindowMouseUpHorizontal)
+}
+
+// Right-click on an existing horizontal line deletes it; right-click on a frequency
+// marker (its line, same hit-test as dragging) hides it (disables it, but keeps its
+// frequency so re-enabling restores position) — both only suppress the browser's context
+// menu when they actually hit something, so right-clicking elsewhere still behaves normally.
+function handleContextMenu(ev: MouseEvent): void {
+  const r = renderer.value
+  const canvas = canvasEl.value
+  if (!r || !canvas) return
+  const xCss = xCssFromEvent(ev, canvas)
+  const yCss = yCssFromEvent(ev, canvas)
+
+  if (!liveIsRelative.value && r.isInYAxisArea(xCss, yCss)) {
+    const hitId = hitTestHorizontalMarker(r, yCss)
+    if (hitId) {
+      ev.preventDefault()
+      horizontalMarkers.remove(hitId)
+    }
+    return
+  }
+
+  const hit = hitTestMarker(r, xCss)
+  if (hit) {
+    ev.preventDefault()
+    setEnabled(hit, false)
+  }
+}
+
 function handleMouseDown(ev: MouseEvent): void {
   const r = renderer.value
   const canvas = canvasEl.value
   if (!r || !canvas) return
   const xCss = xCssFromEvent(ev, canvas)
+  const yCss = yCssFromEvent(ev, canvas)
+
+  if (r.isInYAxisArea(xCss, yCss)) {
+    handleYAxisMouseDown(yCss)
+    return
+  }
+
   const hit = hitTestMarker(r, xCss)
   if (hit) {
     setActiveMarker(hit)
@@ -279,17 +404,56 @@ function handleMouseMove(ev: MouseEvent): void {
   const rect = canvas.getBoundingClientRect()
   const xCss = ev.clientX - rect.left
   const yCss = ev.clientY - rect.top
-  if (!r.isInsidePlotArea(xCss, yCss)) {
+
+  const inPlotArea = r.isInsidePlotArea(xCss, yCss)
+  const inYAxisArea = r.isInYAxisArea(xCss, yCss)
+  const inXAxisArea = r.isInXAxisArea(xCss, yCss)
+
+  // Horizontal-line placement/dragging is meaningless while subtracting (see
+  // horizontalLinesForDraw) — gate the marker-specific interactions on that, but not the
+  // crosshair/readout below, which are just a coordinate readout and stay useful regardless.
+  const yAxisMarkersActive = inYAxisArea && !liveIsRelative.value
+  const hitHorizontal = yAxisMarkersActive ? hitTestHorizontalMarker(r, yCss) : null
+  const hitFreqMarker = !inYAxisArea ? hitTestMarker(r, xCss) : null
+
+  canvasCursor.value =
+    horizontalDragId || hitHorizontal ? 'ns-resize' : draggingMarkerId !== null || hitFreqMarker ? 'ew-resize' : 'crosshair'
+  canvasTitle.value = hitHorizontal
+    ? 'Drag to move, right-click to delete'
+    : yAxisMarkersActive
+      ? 'Click to add a helper line'
+      : hitFreqMarker
+        ? 'Drag to move, right-click to hide'
+        : ''
+
+  hoverCrosshair = inPlotArea
+    ? { xCss, yCss, showVertical: true, showHorizontal: true }
+    : inYAxisArea
+      ? { xCss, yCss, showVertical: false, showHorizontal: true }
+      : inXAxisArea
+        ? { xCss, yCss, showVertical: true, showHorizontal: false }
+        : null
+  redraw()
+
+  if (inPlotArea) {
+    const freqHz = r.xPixelToFreqHz(xCss, freqRangeInput())
+    const value = r.yPixelToValue(yCss, { yRange: currentYRange.value })
+    cursorReadout.value = `${formatFrequencyHz(freqHz)}, ${formatAmplitude(value, yAxisUnit.value, liveIsRelative.value)}`
+  } else if (inYAxisArea) {
+    cursorReadout.value = formatAmplitude(r.yPixelToValue(yCss, { yRange: currentYRange.value }), yAxisUnit.value, liveIsRelative.value)
+  } else if (inXAxisArea) {
+    cursorReadout.value = formatFrequencyHz(r.xPixelToFreqHz(xCss, freqRangeInput()))
+  } else {
     cursorReadout.value = null
-    return
   }
-  const freqHz = r.xPixelToFreqHz(xCss, freqRangeInput())
-  const value = r.yPixelToValue(yCss, { yRange: currentYRange.value })
-  cursorReadout.value = `${formatFrequencyHz(freqHz)}, ${formatAmplitude(value, yAxisUnit.value, liveIsRelative.value)}`
 }
 
 function handleMouseLeave(): void {
   cursorReadout.value = null
+  canvasTitle.value = ''
+  hoverCrosshair = null
+  redraw()
+  if (!horizontalDragId && draggingMarkerId === null) canvasCursor.value = 'crosshair'
 }
 
 // Waterfall lives in a separate <canvas> (a sibling component slotted into
@@ -354,7 +518,15 @@ watchEffect(() => {
 <template>
   <div ref="rootEl" class="plot-canvas">
     <div ref="containerEl" class="canvas-container">
-      <canvas ref="canvasEl" @mousedown="handleMouseDown" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave"></canvas>
+      <canvas
+        ref="canvasEl"
+        :style="{ cursor: canvasCursor }"
+        :title="canvasTitle"
+        @mousedown="handleMouseDown"
+        @mousemove="handleMouseMove"
+        @mouseleave="handleMouseLeave"
+        @contextmenu="handleContextMenu"
+      ></canvas>
       <div v-if="cursorReadout" class="cursor-readout">{{ cursorReadout }}</div>
     </div>
     <slot name="below-canvas" />

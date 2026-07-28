@@ -25,6 +25,19 @@ export interface PlotMarkerPoint {
   label: string
 }
 
+export interface PlotHorizontalLine {
+  /** Already converted to the draw input's yAxisUnit. */
+  value: number
+  label: string
+}
+
+export interface PlotHoverCrosshair {
+  xCss: number
+  yCss: number
+  showVertical: boolean
+  showHorizontal: boolean
+}
+
 export interface PlotRange {
   min: number
   max: number
@@ -40,6 +53,10 @@ export interface PlotDrawInput {
   amplitudeIsRelative?: boolean
   series: PlotSeries[]
   markers: PlotMarkerPoint[]
+  /** User-placed horizontal threshold/helper lines, added by clicking the Y-axis label area. */
+  horizontalLines?: PlotHorizontalLine[]
+  /** Faint hover crosshair — full crosshair over the chart, single hair when hovering just an axis's label margin. */
+  hoverCrosshair?: PlotHoverCrosshair | null
 }
 
 /** Plot-area inset for axis labels — exported so DOM elements (legend, controls) can align to it. */
@@ -99,6 +116,15 @@ export class PlotRenderer {
     return min + ((plotBottom - yCss) / plotHeight) * (max - min)
   }
 
+  /** Inverse of yPixelToValue — for hit-testing a horizontal line's on-screen position. */
+  valueToYPixel(value: number, input: Pick<PlotDrawInput, 'yRange'>): number {
+    const heightCss = this.canvas.height / this.dpr
+    const plotTop = MARGIN.top
+    const plotBottom = heightCss - MARGIN.bottom
+    const plotHeight = plotBottom - plotTop || 1
+    return this.makeYScale(input, plotBottom, plotHeight)(value)
+  }
+
   /** Whether a CSS-pixel point falls inside the plotted (gridded) area, vs. the margin/label region. */
   isInsidePlotArea(xCss: number, yCss: number): boolean {
     const widthCss = this.canvas.width / this.dpr
@@ -106,6 +132,19 @@ export class PlotRenderer {
     return (
       xCss >= MARGIN.left && xCss <= widthCss - MARGIN.right && yCss >= MARGIN.top && yCss <= heightCss - MARGIN.bottom
     )
+  }
+
+  /** Whether a CSS-pixel point falls in the Y-axis label margin — where clicking places a horizontal helper line. */
+  isInYAxisArea(xCss: number, yCss: number): boolean {
+    const heightCss = this.canvas.height / this.dpr
+    return xCss >= 0 && xCss < MARGIN.left && yCss >= MARGIN.top && yCss <= heightCss - MARGIN.bottom
+  }
+
+  /** Whether a CSS-pixel point falls in the X-axis (frequency) label margin below the plot. */
+  isInXAxisArea(xCss: number, yCss: number): boolean {
+    const widthCss = this.canvas.width / this.dpr
+    const heightCss = this.canvas.height / this.dpr
+    return xCss >= MARGIN.left && xCss <= widthCss - MARGIN.right && yCss > heightCss - MARGIN.bottom && yCss <= heightCss
   }
 
   draw(input: PlotDrawInput): void {
@@ -128,10 +167,13 @@ export class PlotRenderer {
     const plotHeight = Math.max(1, plotBottom - plotTop)
 
     const xScale = this.makeXScale(input, plotLeft, plotWidth)
-    const yScale = (value: number): number =>
-      plotBottom - ((value - input.yRange.min) / (input.yRange.max - input.yRange.min || 1)) * plotHeight
+    const yScale = this.makeYScale(input, plotBottom, plotHeight)
 
     this.drawGrid(ctx, chrome, input, plotLeft, plotTop, plotRight, plotBottom, xScale, yScale)
+
+    if (input.horizontalLines?.length) {
+      this.drawHorizontalLines(ctx, chrome, input.horizontalLines, plotLeft, plotRight, yScale)
+    }
 
     ctx.save()
     ctx.beginPath()
@@ -146,6 +188,39 @@ export class PlotRenderer {
       this.drawMarker(ctx, marker, chrome, xScale, yScale, plotTop, plotBottom, input.yAxisUnit, input.amplitudeIsRelative)
     }
 
+    if (input.hoverCrosshair) {
+      this.drawHoverCrosshair(ctx, chrome, input.hoverCrosshair, plotLeft, plotTop, plotRight, plotBottom)
+    }
+
+    ctx.restore()
+  }
+
+  private drawHoverCrosshair(
+    ctx: CanvasRenderingContext2D,
+    chrome: typeof CHROME,
+    crosshair: PlotHoverCrosshair,
+    plotLeft: number,
+    plotTop: number,
+    plotRight: number,
+    plotBottom: number,
+  ): void {
+    ctx.save()
+    ctx.strokeStyle = chrome.primaryInk
+    ctx.globalAlpha = 0.07
+    ctx.lineWidth = 1
+    ctx.setLineDash([])
+    if (crosshair.showVertical) {
+      ctx.beginPath()
+      ctx.moveTo(crosshair.xCss, plotTop)
+      ctx.lineTo(crosshair.xCss, plotBottom)
+      ctx.stroke()
+    }
+    if (crosshair.showHorizontal) {
+      ctx.beginPath()
+      ctx.moveTo(plotLeft, crosshair.yCss)
+      ctx.lineTo(plotRight, crosshair.yCss)
+      ctx.stroke()
+    }
     ctx.restore()
   }
 
@@ -155,6 +230,38 @@ export class PlotRenderer {
     plotWidth: number,
   ): (hz: number) => number {
     return computeXScale(input.freqRangeHz, input.xAxisScale, plotLeft, plotWidth)
+  }
+
+  private makeYScale(input: Pick<PlotDrawInput, 'yRange'>, plotBottom: number, plotHeight: number): (value: number) => number {
+    return (value: number): number =>
+      plotBottom - ((value - input.yRange.min) / (input.yRange.max - input.yRange.min || 1)) * plotHeight
+  }
+
+  private drawHorizontalLines(
+    ctx: CanvasRenderingContext2D,
+    chrome: typeof CHROME,
+    lines: PlotHorizontalLine[],
+    plotLeft: number,
+    plotRight: number,
+    yScale: (value: number) => number,
+  ): void {
+    ctx.save()
+    ctx.strokeStyle = chrome.mutedInk
+    ctx.lineWidth = 1
+    ctx.setLineDash([4, 3])
+    ctx.font = '11px system-ui, sans-serif'
+    ctx.fillStyle = chrome.mutedInk
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'bottom'
+    for (const line of lines) {
+      const y = yScale(line.value)
+      ctx.beginPath()
+      ctx.moveTo(plotLeft, y)
+      ctx.lineTo(plotRight, y)
+      ctx.stroke()
+      ctx.fillText(line.label, plotLeft + 4, y - 2)
+    }
+    ctx.restore()
   }
 
   private drawGrid(
@@ -271,15 +378,31 @@ export class PlotRenderer {
       ctx.fill()
     }
 
-    const label = `${marker.label}: ${formatFrequencyHz(marker.freqHz)}${marker.amplitude !== null ? `, ${formatAmplitude(marker.amplitude, yAxisUnit, amplitudeIsRelative)}` : ''}`
-    ctx.font = '11px system-ui, sans-serif'
-    const textWidth = ctx.measureText(label).width
-    const labelX = Math.min(Math.max(x + 6, 4), ctx.canvas.width / this.dpr - textWidth - 10)
+    const rect = this.markerLabelRect(marker, x, plotTop, yAxisUnit, amplitudeIsRelative)
     ctx.fillStyle = chrome.surface
-    ctx.fillRect(labelX - 3, plotTop + 2, textWidth + 6, 14)
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
     ctx.fillStyle = chrome.primaryInk
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    ctx.fillText(label, labelX, plotTop + 3)
+    ctx.fillText(this.markerLabelText(marker, yAxisUnit, amplitudeIsRelative), rect.x + 3, rect.y + 1)
+  }
+
+  private markerLabelText(marker: PlotMarkerPoint, yAxisUnit: YAxisUnit, amplitudeIsRelative: boolean | undefined): string {
+    return `${marker.label}: ${formatFrequencyHz(marker.freqHz)}${marker.amplitude !== null ? `, ${formatAmplitude(marker.amplitude, yAxisUnit, amplitudeIsRelative)}` : ''}`
+  }
+
+  /** The label's on-screen box for a marker at x-pixel `x`. */
+  private markerLabelRect(
+    marker: PlotMarkerPoint,
+    x: number,
+    plotTop: number,
+    yAxisUnit: YAxisUnit,
+    amplitudeIsRelative: boolean | undefined,
+  ): { x: number; y: number; width: number; height: number } {
+    const widthCss = this.canvas.width / this.dpr
+    this.ctx.font = '11px system-ui, sans-serif'
+    const textWidth = this.ctx.measureText(this.markerLabelText(marker, yAxisUnit, amplitudeIsRelative)).width
+    const labelX = Math.min(Math.max(x + 6, 4), widthCss - textWidth - 10)
+    return { x: labelX - 3, y: plotTop + 2, width: textWidth + 6, height: 14 }
   }
 }

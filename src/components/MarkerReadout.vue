@@ -63,51 +63,71 @@ const harmonicCandidates = computed(() => {
   <fieldset class="marker-readout" title="Click the plot to place the active marker.">
     <legend>Markers</legend>
 
-    <div v-for="row in rows" :key="row.id" class="marker-row">
-      <label class="active-radio">
-        <input
-          type="radio"
-          name="active-marker"
-          :checked="activeMarker === row.id"
-          @change="setActiveMarker(row.id)"
-        />
-        {{ row.label }}
-      </label>
-      <span class="readout">{{ row.freqLabel }}<template v-if="row.enabled">, {{ row.ampLabel }}</template></span>
-      <label class="enabled-checkbox">
-        <input
-          type="checkbox"
-          :checked="row.enabled"
-          @change="setEnabled(row.id, ($event.target as HTMLInputElement).checked)"
-        />
-      </label>
-      <button type="button" :disabled="!row.enabled" @click="clear(row.id)">Clear</button>
+    <div class="content">
+      <div class="marker-rows">
+        <div v-for="row in rows" :key="row.id" class="marker-row">
+          <label class="active-radio">
+            <input
+              type="radio"
+              name="active-marker"
+              :checked="activeMarker === row.id"
+              @change="setActiveMarker(row.id)"
+            />
+            {{ row.label }}
+          </label>
+          <span class="readout">{{ row.freqLabel }}<template v-if="row.enabled">, {{ row.ampLabel }}</template></span>
+          <label class="enabled-checkbox">
+            <input
+              type="checkbox"
+              :checked="row.enabled"
+              @change="setEnabled(row.id, ($event.target as HTMLInputElement).checked)"
+            />
+          </label>
+          <button type="button" :disabled="!row.enabled" @click="clear(row.id)">Clear</button>
+        </div>
+      </div>
+
+      <div v-if="delta" class="marker-extra">
+        <p class="delta">
+          Δ: {{ (delta.deltaFreqHz / 1e6).toFixed(3) }} MHz<template v-if="delta.deltaAmp !== null">
+            , {{ delta.deltaAmp >= 0 ? '+' : '' }}{{ delta.deltaAmp.toFixed(1) }} {{ noiseFloorEnabled ? 'dB' : yAxisUnit === 'dBuV' ? 'dBµV' : 'dBm' }}</template
+          >
+        </p>
+
+        <details class="harmonics" open title="Candidate lower frequencies whose harmonics could line up with both M1 and M2.">
+          <summary>Possible common base…</summary>
+          <ul v-if="harmonicCandidates.length">
+            <li v-for="c in harmonicCandidates" :key="c.baseHz">
+              {{ formatFrequencyHz(c.baseHz) }} (lower=×{{ c.nLow }}, higher=×{{ c.nHigh }}, ±{{ (c.errorFraction * 100).toFixed(1) }}%)
+            </li>
+          </ul>
+          <p v-else class="hint">No clean harmonic relationship found within tolerance.</p>
+        </details>
+      </div>
     </div>
-
-    <p v-if="delta" class="delta">
-      Δ: {{ (delta.deltaFreqHz / 1e6).toFixed(3) }} MHz<template v-if="delta.deltaAmp !== null">
-        , {{ delta.deltaAmp >= 0 ? '+' : '' }}{{ delta.deltaAmp.toFixed(1) }} {{ noiseFloorEnabled ? 'dB' : yAxisUnit === 'dBuV' ? 'dBµV' : 'dBm' }}</template
-      >
-    </p>
-
-    <details v-if="delta" class="harmonics">
-      <summary>Possible common base…</summary>
-      <ul v-if="harmonicCandidates.length">
-        <li v-for="c in harmonicCandidates" :key="c.baseHz">
-          {{ formatFrequencyHz(c.baseHz) }} (lower=×{{ c.nLow }}, higher=×{{ c.nHigh }}, ±{{ (c.errorFraction * 100).toFixed(1) }}%)
-        </li>
-      </ul>
-      <p v-else class="hint">No clean harmonic relationship found within tolerance.</p>
-    </details>
   </fieldset>
 </template>
 
 <style scoped>
 .marker-readout {
+  padding: 0.75rem 1rem;
+}
+.content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.marker-rows {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  padding: 0.75rem 1rem;
+}
+.marker-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
 }
 .hint {
   margin: 0;
@@ -131,12 +151,11 @@ const harmonicCandidates = computed(() => {
   font-variant-numeric: tabular-nums;
 }
 .delta {
-  margin: 0.2rem 0 0;
+  margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
 }
 .harmonics {
-  margin-top: 0.1rem;
   font-size: 0.75rem;
   color: var(--muted-ink);
 }
