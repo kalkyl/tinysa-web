@@ -13,6 +13,8 @@ export interface CustomLimitLine {
   name: string
   unit: YAxisUnit
   breakpoints: Breakpoint[]
+  /** Optional for backward compatibility with lines saved before this existed — treated as enabled when absent. */
+  enabled?: boolean
 }
 
 export interface ReferenceSeries {
@@ -45,16 +47,26 @@ export function useReferenceLines() {
   }
 
   function addCustomLine(name: string, unit: YAxisUnit, breakpoints: Breakpoint[]): void {
-    customLines.value = [...customLines.value, { id: uuidv4(), name, unit, breakpoints }]
+    customLines.value = [...customLines.value, { id: uuidv4(), name, unit, breakpoints, enabled: true }]
+  }
+
+  function updateCustomLine(id: string, name: string, unit: YAxisUnit, breakpoints: Breakpoint[]): void {
+    customLines.value = customLines.value.map((line) => (line.id === id ? { ...line, name, unit, breakpoints } : line))
   }
 
   function removeCustomLine(id: string): void {
     customLines.value = customLines.value.filter((line) => line.id !== id)
   }
 
-  // Reference lines are drawn in absolute dBm/dBuV — the wrong scale while
-  // the live trace is a relative dB delta. Selections themselves aren't
-  // touched, just not rendered, so they reappear the moment subtraction ends.
+  function toggleCustomLine(id: string, enabled: boolean): void {
+    customLines.value = customLines.value.map((line) => (line.id === id ? { ...line, enabled } : line))
+  }
+
+  function isCustomLineEnabled(line: CustomLimitLine): boolean {
+    return line.enabled !== false
+  }
+
+  // Absolute dBm/dBuV lines are the wrong scale while subtracting — hidden, not deselected.
   const activeReferenceSeries = computed<ReferenceSeries[]>(() => {
     if (subtractModeActive.value) return []
     const cfg = sweepConfig.value
@@ -73,6 +85,7 @@ export function useReferenceLines() {
       }
     }
     for (const line of customLines.value) {
+      if (!isCustomLineEnabled(line)) continue
       series.push({
         id: line.id,
         label: line.name,
@@ -90,7 +103,10 @@ export function useReferenceLines() {
     togglePreset,
     customLines,
     addCustomLine,
+    updateCustomLine,
     removeCustomLine,
+    toggleCustomLine,
+    isCustomLineEnabled,
     activeReferenceSeries,
     subtractModeActive,
   }

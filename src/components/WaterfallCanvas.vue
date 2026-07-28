@@ -25,12 +25,16 @@ const subtractModeActive = useSubtractModeActive()
 
 function buildDrawInput(): WaterfallDrawInput {
   const cfg = sweepConfig.value
+  const rows = displayRows.value
+  // Anchor to the newest row's own timestamp, not a fresh Date.now() — matches the
+  // reference ingest() trims against, so the oldest row's elapsed time can't drift past windowMs.
+  const nowMs = rows.length > 0 ? rows[rows.length - 1].timestampMs : Date.now()
   return {
     freqRangeHz: { min: cfg.startHz, max: cfg.stopHz },
     xAxisScale: xAxisScale.value,
     colorRangeDbm: colorRangeDbm.value,
-    rows: displayRows.value,
-    nowMs: Date.now(),
+    rows,
+    nowMs,
     windowMs: windowSeconds.value * 1000,
   }
 }

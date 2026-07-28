@@ -1,7 +1,7 @@
 import type { Transport } from './transport'
 import { ByteStreamReader } from './byteStreamReader'
 import { CommandQueue } from './commandQueue'
-import { DeviceUnsupportedError, TimeoutError } from './errors'
+import { DeviceUnsupportedError, ProtocolError, TimeoutError } from './errors'
 import { asciiCommandTimeoutMs, computeScanTimeoutMs } from './timeouts'
 import {
   assertClosingMarker,
@@ -9,6 +9,7 @@ import {
   CLOSE_BRACE_PROMPT,
   decodeScanRawSamples,
   encodeCommand,
+  isPrintableAsciiText,
   modeCommand,
   OPEN_BRACE,
   parseAttenuateResponse,
@@ -62,6 +63,13 @@ export class TinySADevice {
   static async connect(transport: Transport): Promise<TinySADevice> {
     const device = new TinySADevice(transport, tinySABasicProfile)
     const infoText = await device.runAscii('version')
+    // A prior session that didn't close cleanly (e.g. a reload mid-scan) can leave stale
+    // bytes ahead of the real response. Retrying here would risk a stray leftover response
+    // contaminating the next command, so fail clearly instead — the user's own fix
+    // (disconnect and reconnect) already gets a fresh port with no such stale bytes.
+    if (!isPrintableAsciiText(infoText)) {
+      throw new ProtocolError('Received a garbled response from the device — please disconnect and reconnect.')
+    }
     device._versionText = infoText
     const detection = detectModel(infoText)
     if (detection.profile.id === 'tinysa-ultra') {

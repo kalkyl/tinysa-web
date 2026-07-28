@@ -70,6 +70,11 @@ export class MockTransport implements Transport {
     this.versionText = text
   }
 
+  /** Test hook: queues bytes as if already sitting in the buffer before any command was sent — simulates a stale prior session. */
+  injectStaleBytes(bytes: Uint8Array): void {
+    this.emitBytes(bytes)
+  }
+
   private handleCommand(line: string): void {
     const [cmd, ...args] = line.trim().split(/\s+/)
     switch (cmd) {

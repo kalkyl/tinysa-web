@@ -1,27 +1,39 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useReferenceLines } from '../composables/useReferenceLines'
+import { useReferenceLines, type CustomLimitLine } from '../composables/useReferenceLines'
 import { useDisplayUnits } from '../composables/useDisplayUnits'
+import { convertFromDbm } from '../plot/units'
 import type { Breakpoint } from '../utils/interpolate'
 
-const { addCustomLine } = useReferenceLines()
+const props = defineProps<{ editLine?: CustomLimitLine | null }>()
+const { addCustomLine, updateCustomLine } = useReferenceLines()
 const { yAxisUnit } = useDisplayUnits()
-const emit = defineEmits<{ submit: [] }>()
+const emit = defineEmits<{ submit: []; cancel: [] }>()
 
 interface Row {
   mhz: number
   db: number
 }
 
-const name = ref('')
-const rows = ref<Row[]>([
-  { mhz: 30, db: -50 },
-  { mhz: 1000, db: -50 },
-])
+// -50 dBm is sane, but the Y-axis defaults to dBuV, where a flat -50 is off the bottom of any real plot.
+function defaultLevel(): number {
+  return Math.round(convertFromDbm(-50, yAxisUnit.value) * 10) / 10
+}
+
+function defaultRows(): Row[] {
+  const db = defaultLevel()
+  return [
+    { mhz: 30, db },
+    { mhz: 1000, db },
+  ]
+}
+
+const name = ref(props.editLine?.name ?? '')
+const rows = ref<Row[]>(props.editLine ? props.editLine.breakpoints.map((bp) => ({ mhz: bp.freqHz / 1e6, db: bp.dB })) : defaultRows())
 
 function addRow(): void {
   const last = rows.value[rows.value.length - 1]
-  rows.value = [...rows.value, { mhz: (last?.mhz ?? 0) + 10, db: last?.db ?? -50 }]
+  rows.value = [...rows.value, { mhz: (last?.mhz ?? 0) + 10, db: last?.db ?? defaultLevel() }]
 }
 
 function removeRow(index: number): void {
@@ -31,12 +43,13 @@ function removeRow(index: number): void {
 function submit(): void {
   if (!name.value.trim() || rows.value.length < 2) return
   const breakpoints: Breakpoint[] = rows.value.map((r) => ({ freqHz: r.mhz * 1e6, dB: r.db }))
-  addCustomLine(name.value.trim(), yAxisUnit.value, breakpoints)
+  if (props.editLine) {
+    updateCustomLine(props.editLine.id, name.value.trim(), yAxisUnit.value, breakpoints)
+  } else {
+    addCustomLine(name.value.trim(), yAxisUnit.value, breakpoints)
+  }
   name.value = ''
-  rows.value = [
-    { mhz: 30, db: -50 },
-    { mhz: 1000, db: -50 },
-  ]
+  rows.value = defaultRows()
   emit('submit')
 }
 </script>
@@ -67,7 +80,8 @@ function submit(): void {
 
     <div class="row-actions">
       <button type="button" @click="addRow">Add point</button>
-      <button type="submit" :disabled="!name.trim() || rows.length < 2">Add line</button>
+      <button type="button" class="cancel" @click="emit('cancel')">Cancel</button>
+      <button type="submit" :disabled="!name.trim() || rows.length < 2">OK</button>
     </div>
   </form>
 </template>
@@ -104,5 +118,8 @@ td input {
 .row-actions {
   display: flex;
   gap: 0.5rem;
+}
+.cancel {
+  margin-left: auto;
 }
 </style>

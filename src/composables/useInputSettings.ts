@@ -5,13 +5,10 @@ import { useStreaming } from './useStreaming'
 import type { AttenuatorSetting, InputMode } from '../types/protocol'
 
 const inputMode = persistedRef<InputMode>('device.inputMode', 'low')
-// Default to manual/0dB: on tinySA Basic, "auto" is a fixed 30dB (Low mode) / 0dB (High
-// mode) preset rather than an adaptive AGC, so defaulting to it would silently raise the
-// noise floor for new users.
+// Default off: on tinySA Basic, "auto" is a fixed 30dB (Low)/0dB (High) preset, not an
+// adaptive AGC — defaulting to it would silently raise the noise floor for new users.
 const attenuatorAuto = persistedRef('device.attenuatorAuto', false)
 const attenuatorDb = persistedRef('device.attenuatorDb', 0)
-// Shifts the IF to reduce spurious mixer products/images — a real quality improvement
-// with only a minor sweep-time cost, so (unlike attenuator "auto") on is a sensible default.
 const spurReduction = persistedRef('device.spurReduction', true)
 
 /** What the device actually resolved "auto" (or the fixed setting) to — read back periodically while streaming. */

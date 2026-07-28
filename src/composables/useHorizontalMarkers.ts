@@ -2,7 +2,7 @@ import { persistedRef } from '../utils/persistedRef'
 
 export interface HorizontalMarker {
   id: string
-  /** Always stored in absolute dBm, like every other amplitude in this app — converted for display. */
+  /** Absolute dBm normally, or a plain relative delta if placed while subtracting — see PlotCanvas. */
   valueDbm: number
 }
 

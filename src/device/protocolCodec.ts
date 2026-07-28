@@ -15,6 +15,11 @@ export function encodeCommand(cmd: string): Uint8Array {
   return encoder.encode(`${cmd}\r`)
 }
 
+/** True if text is plain printable ASCII (+ whitespace) — used to detect a garbled version response. */
+export function isPrintableAsciiText(text: string): boolean {
+  return text.length > 0 && /^[\x20-\x7E\r\n\t]*$/.test(text)
+}
+
 export function sweepCommand(cfg: SweepConfig): string {
   return `sweep ${cfg.startHz} ${cfg.stopHz} ${cfg.points}`
 }

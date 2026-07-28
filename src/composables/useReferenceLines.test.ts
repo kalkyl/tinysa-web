@@ -47,6 +47,56 @@ describe('useReferenceLines', () => {
     expect(activeReferenceSeries.value.some((s) => s.id === added.id)).toBe(false)
   })
 
+  it('toggling a custom line off hides it without deleting it, same as a preset', () => {
+    const { addCustomLine, removeCustomLine, toggleCustomLine, isCustomLineEnabled, customLines, activeReferenceSeries } =
+      useReferenceLines()
+
+    addCustomLine('Toggle me', 'dBm', [
+      { freqHz: 0, dB: -50 },
+      { freqHz: 1e9, dB: -50 },
+    ])
+    const added = customLines.value[customLines.value.length - 1]
+    expect(isCustomLineEnabled(added)).toBe(true)
+    expect(activeReferenceSeries.value.some((s) => s.id === added.id)).toBe(true)
+
+    toggleCustomLine(added.id, false)
+    const afterToggleOff = customLines.value.find((l) => l.id === added.id)!
+    expect(isCustomLineEnabled(afterToggleOff)).toBe(false)
+    expect(activeReferenceSeries.value.some((s) => s.id === added.id)).toBe(false)
+    expect(customLines.value.some((l) => l.id === added.id)).toBe(true) // still there, just hidden
+
+    toggleCustomLine(added.id, true)
+    expect(activeReferenceSeries.value.some((s) => s.id === added.id)).toBe(true)
+
+    removeCustomLine(added.id)
+  })
+
+  it('updateCustomLine replaces name/unit/breakpoints in place, keeping the same id', () => {
+    const { addCustomLine, updateCustomLine, removeCustomLine, customLines, activeReferenceSeries } = useReferenceLines()
+
+    addCustomLine('Original name', 'dBm', [
+      { freqHz: 0, dB: -50 },
+      { freqHz: 1e9, dB: -50 },
+    ])
+    const added = customLines.value[customLines.value.length - 1]
+
+    updateCustomLine(added.id, 'Renamed', 'dBuV', [
+      { freqHz: 0, dB: 40 },
+      { freqHz: 1e9, dB: 60 },
+    ])
+    const updated = customLines.value.find((l) => l.id === added.id)!
+    expect(updated.name).toBe('Renamed')
+    expect(updated.unit).toBe('dBuV')
+    expect(updated.breakpoints).toEqual([
+      { freqHz: 0, dB: 40 },
+      { freqHz: 1e9, dB: 60 },
+    ])
+    // Still enabled and rendered — updating shouldn't disturb visibility.
+    expect(activeReferenceSeries.value.some((s) => s.id === added.id)).toBe(true)
+
+    removeCustomLine(added.id)
+  })
+
   it('hides all reference lines while subtracting, without touching the underlying selection', async () => {
     const { sweepConfig } = useSweepConfig()
     const { presets, togglePreset, activeReferenceSeries, isPresetEnabled } = useReferenceLines()

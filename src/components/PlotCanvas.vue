@@ -47,8 +47,7 @@ const { xAxisScale, yAxisUnit } = useDisplayUnits()
 const { activeReferenceSeries } = useReferenceLines()
 const { activeMarker, markerPoints, placeActiveMarkerAt, setMarkerFreq, setActiveMarker, setEnabled } = useMarkers()
 let draggingMarkerId: MarkerId | null = null
-// Plain (non-reactive) — updated directly by the mouse handlers, which call redraw()
-// themselves, rather than adding a ref that reruns the whole watchEffect on every pixel of movement.
+// Plain, not a ref — mouse handlers call redraw() themselves instead of triggering the watchEffect.
 let hoverCrosshair: PlotHoverCrosshair | null = null
 const { overlaySeries } = useMeasurementStore()
 const { enabled: averagingEnabled } = useAveraging()
@@ -93,11 +92,7 @@ interface LegendEntry {
   onToggle?: (visible: boolean) => void
 }
 
-// Noise-floor-subtracted values are a dB delta, not an absolute power, so the
-// dBm<->dBuV absolute-unit offset must not be applied to them (see
-// useNoiseFloor). The Y-axis scale/format follows the *live* trace's
-// subtraction state specifically — it's the one currentYRange is derived
-// from below.
+// A subtracted value is a dB delta, not an absolute power — the dBm<->dBuV offset must skip it.
 const liveIsRelative = computed(() => {
   const frame = displayedFrame.value
   return !!frame && noiseFloor.isSubtractionActive(frame.frequenciesHz)
@@ -108,12 +103,7 @@ const peakIsRelative = computed(() => {
   return !!freqs && noiseFloor.isSubtractionActive(freqs)
 })
 
-// The Y-axis follows live's domain (see currentYRange). If live is
-// subtracting but peak hold isn't (e.g. an ambient "Capture now" baseline,
-// which only ever targets live) — or vice versa — peak hold's values are on
-// the wrong scale for whatever unit conversion the axis is applying: hide it
-// entirely rather than let it sit outside the fitted range or get double/no
-// offset applied.
+// Hide peak hold if its subtraction state disagrees with live's — the Y-axis follows live's domain.
 const peakScaleMismatch = computed(() => liveIsRelative.value !== peakIsRelative.value)
 
 const legendEntries = computed(() => {
@@ -151,12 +141,8 @@ const legendEntries = computed(() => {
   return entries
 })
 
-// A relative dB delta and an absolute dBm reading are numerically worlds
-// apart (delta near 0 vs. e.g. -80). The auto-range's hysteresis (below)
-// only rescales on breach, which usually — but not reliably — catches a
-// domain jump; force a clean refit whenever either curve's relative-ness
-// actually flips, rather than risk a stale/oversized range from the other
-// domain lingering.
+// Force a clean auto-range refit on any relative/absolute domain flip — the hysteresis
+// below only rescales on breach, which doesn't reliably catch a domain jump on its own.
 watch([liveIsRelative, peakIsRelative], () => resetAutoRange())
 
 const currentYRange = computed(() => {
@@ -167,14 +153,21 @@ const currentYRange = computed(() => {
   return { min: convertFromDbm(dbmRange.min, unit), max: convertFromDbm(dbmRange.max, unit) }
 })
 
-// Stored as absolute dBm — meaningless as a delta, so hidden while subtracting (same
-// "wrong scale" reasoning as reference lines/overlays/the unit selector).
+// Stored in whatever domain was active when placed — absolute dBm normally, or a plain
+// relative delta while subtracting (same convention as markers/the cursor readout).
+function horizontalValueToDisplay(valueDbm: number): number {
+  return liveIsRelative.value ? valueDbm : convertFromDbm(valueDbm, yAxisUnit.value)
+}
+function horizontalValueFromDisplay(displayValue: number): number {
+  return liveIsRelative.value ? displayValue : convertToDbm(displayValue, yAxisUnit.value)
+}
+
 const horizontalLinesForDraw = computed<PlotHorizontalLine[]>(() => {
-  if (liveIsRelative.value) return []
   const unit = yAxisUnit.value
+  const isRelative = liveIsRelative.value
   return horizontalMarkers.markers.value.map((m) => {
-    const value = convertFromDbm(m.valueDbm, unit)
-    return { value, label: formatAmplitude(value, unit, false) }
+    const value = horizontalValueToDisplay(m.valueDbm)
+    return { value, label: formatAmplitude(value, unit, isRelative) }
   })
 })
 
@@ -216,8 +209,7 @@ function buildDrawInput(): PlotDrawInput | null {
     })
   })
 
-  // The level dot only makes sense pinned to a visible curve — when Live is hidden there's
-  // nothing on-screen for it to mark, so the label falls back to frequency-only.
+  // Level dot needs a visible curve to pin to — falls back to frequency-only when Live is hidden.
   const markers: PlotMarkerPoint[] = markerPoints.value.map((m) => ({
     freqHz: m.freqHz,
     amplitude: showLiveTrace.value ? nearestAmplitude(frame, m.freqHz, unit, isRelative) : null,
@@ -288,23 +280,17 @@ function hitTestMarker(r: PlotRenderer, xCss: number): MarkerId | null {
 const HORIZONTAL_MARKER_HIT_TOLERANCE_PX = 6
 
 function hitTestHorizontalMarker(r: PlotRenderer, yCss: number): string | null {
-  const unit = yAxisUnit.value
   for (const m of horizontalMarkers.markers.value) {
-    const y = r.valueToYPixel(convertFromDbm(m.valueDbm, unit), { yRange: currentYRange.value })
+    const y = r.valueToYPixel(horizontalValueToDisplay(m.valueDbm), { yRange: currentYRange.value })
     if (Math.abs(y - yCss) <= HORIZONTAL_MARKER_HIT_TOLERANCE_PX) return m.id
   }
   return null
 }
 
-// Left-click always adds (empty margin) or drags (existing line) — delete is a separate
-// right-click gesture (handleContextMenu), so there's no click-vs-drag ambiguity to
-// resolve here. A mousedown on empty margin space adds a new line immediately and starts
-// dragging it too, so it can be fine-tuned in the same gesture (mirrors
-// placeActiveMarkerAt's behavior for M1/M2).
+// Left-click adds (empty margin) or drags (existing line); delete is right-click only (handleContextMenu).
 let horizontalDragId: string | null = null
 
 function handleYAxisMouseDown(yCss: number): void {
-  if (liveIsRelative.value) return
   const r = renderer.value
   if (!r) return
   const hitId = hitTestHorizontalMarker(r, yCss)
@@ -312,7 +298,7 @@ function handleYAxisMouseDown(yCss: number): void {
     horizontalDragId = hitId
   } else {
     const displayValue = r.yPixelToValue(yCss, { yRange: currentYRange.value })
-    horizontalDragId = horizontalMarkers.add(convertToDbm(displayValue, yAxisUnit.value))
+    horizontalDragId = horizontalMarkers.add(horizontalValueFromDisplay(displayValue))
   }
   window.addEventListener('mousemove', handleWindowMouseMoveHorizontal)
   window.addEventListener('mouseup', handleWindowMouseUpHorizontal)
@@ -324,7 +310,7 @@ function handleWindowMouseMoveHorizontal(ev: MouseEvent): void {
   if (!r || !canvas || !horizontalDragId) return
   const yCss = yCssFromEvent(ev, canvas)
   const displayValue = r.yPixelToValue(yCss, { yRange: currentYRange.value })
-  horizontalMarkers.setValue(horizontalDragId, convertToDbm(displayValue, yAxisUnit.value))
+  horizontalMarkers.setValue(horizontalDragId, horizontalValueFromDisplay(displayValue))
 }
 
 function handleWindowMouseUpHorizontal(): void {
@@ -333,10 +319,8 @@ function handleWindowMouseUpHorizontal(): void {
   window.removeEventListener('mouseup', handleWindowMouseUpHorizontal)
 }
 
-// Right-click on an existing horizontal line deletes it; right-click on a frequency
-// marker (its line, same hit-test as dragging) hides it (disables it, but keeps its
-// frequency so re-enabling restores position) — both only suppress the browser's context
-// menu when they actually hit something, so right-clicking elsewhere still behaves normally.
+// Right-click deletes a horizontal line, or hides a frequency marker (keeps its frequency).
+// Only suppresses the browser's context menu when it actually hits something.
 function handleContextMenu(ev: MouseEvent): void {
   const r = renderer.value
   const canvas = canvasEl.value
@@ -344,7 +328,7 @@ function handleContextMenu(ev: MouseEvent): void {
   const xCss = xCssFromEvent(ev, canvas)
   const yCss = yCssFromEvent(ev, canvas)
 
-  if (!liveIsRelative.value && r.isInYAxisArea(xCss, yCss)) {
+  if (r.isInYAxisArea(xCss, yCss)) {
     const hitId = hitTestHorizontalMarker(r, yCss)
     if (hitId) {
       ev.preventDefault()
@@ -361,6 +345,7 @@ function handleContextMenu(ev: MouseEvent): void {
 }
 
 function handleMouseDown(ev: MouseEvent): void {
+  if (ev.button !== 0) return // right/middle click must never add or drag — only handleContextMenu (hide) applies to them
   const r = renderer.value
   const canvas = canvasEl.value
   if (!r || !canvas) return
@@ -409,18 +394,14 @@ function handleMouseMove(ev: MouseEvent): void {
   const inYAxisArea = r.isInYAxisArea(xCss, yCss)
   const inXAxisArea = r.isInXAxisArea(xCss, yCss)
 
-  // Horizontal-line placement/dragging is meaningless while subtracting (see
-  // horizontalLinesForDraw) — gate the marker-specific interactions on that, but not the
-  // crosshair/readout below, which are just a coordinate readout and stay useful regardless.
-  const yAxisMarkersActive = inYAxisArea && !liveIsRelative.value
-  const hitHorizontal = yAxisMarkersActive ? hitTestHorizontalMarker(r, yCss) : null
+  const hitHorizontal = inYAxisArea ? hitTestHorizontalMarker(r, yCss) : null
   const hitFreqMarker = !inYAxisArea ? hitTestMarker(r, xCss) : null
 
   canvasCursor.value =
     horizontalDragId || hitHorizontal ? 'ns-resize' : draggingMarkerId !== null || hitFreqMarker ? 'ew-resize' : 'crosshair'
   canvasTitle.value = hitHorizontal
     ? 'Drag to move, right-click to delete'
-    : yAxisMarkersActive
+    : inYAxisArea
       ? 'Click to add a helper line'
       : hitFreqMarker
         ? 'Drag to move, right-click to hide'
@@ -456,9 +437,7 @@ function handleMouseLeave(): void {
   if (!horizontalDragId && draggingMarkerId === null) canvasCursor.value = 'crosshair'
 }
 
-// Waterfall lives in a separate <canvas> (a sibling component slotted into
-// .below-canvas) — composite it in below the main plot when present/enabled,
-// rather than exporting only the FFT chart.
+// Waterfall lives in a separate <canvas> (slotted into .below-canvas) — composite it in when present.
 function exportPng(): void {
   const canvas = canvasEl.value
   if (!canvas) return

@@ -12,8 +12,7 @@ const enabled = persistedRef('waterfall.enabled', false)
 const windowSeconds = persistedRef('waterfall.windowSeconds', 20)
 const rows = shallowRef<WaterfallRow[]>([])
 
-// "Sensitivity": the dB range the color ramp is normalized against — independent of the
-// main plot's Y-axis, so it can be zoomed to whatever level range is of interest.
+// "Sensitivity": the dB range the color ramp normalizes against, independent of the main plot's Y-axis.
 const colorAuto = persistedRef('waterfall.colorAuto', true)
 const colorMinDbm = persistedRef('waterfall.colorMinDbm', -100)
 const colorMaxDbm = persistedRef('waterfall.colorMaxDbm', -40)
@@ -48,15 +47,12 @@ export function useWaterfall() {
     rows.value = []
   }
 
-  // Disabling just pauses ingestion (see ingest()) — the buffer survives a temporary
-  // toggle, and just ages out naturally against the window once re-enabled.
+  // Just pauses ingestion — the buffer survives a temporary toggle instead of clearing.
   function setEnabled(value: boolean): void {
     enabled.value = value
   }
 
-  // Re-evaluated against the *current* baseline/toggle state on every read, same as the
-  // live trace — not frozen at capture time. A row whose own sweep no longer matches the
-  // active baseline just falls back to its raw value (see useNoiseFloor.applySubtraction).
+  // Re-evaluated against the current baseline on every read, same as the live trace — not frozen at capture time.
   const displayRows = computed<WaterfallRow[]>(() =>
     rows.value.map((row) => ({
       ...row,

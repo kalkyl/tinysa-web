@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TinySADevice } from './tinySADevice'
 import { MockTransport } from './mockTransport'
-import { DeviceUnsupportedError, TimeoutError } from './errors'
+import { DeviceUnsupportedError, ProtocolError, TimeoutError } from './errors'
 import type { Transport } from './transport'
 
 describe('TinySADevice + MockTransport', () => {
@@ -21,6 +21,12 @@ describe('TinySADevice + MockTransport', () => {
     const transport = new MockTransport()
     transport.setVersionText('tinySA4_v1.4-160-abcdef')
     await expect(TinySADevice.connect(transport)).rejects.toThrow(DeviceUnsupportedError)
+  })
+
+  it('fails clearly instead of silently accepting a garbled version response (stale bytes from a prior session)', async () => {
+    const transport = new MockTransport()
+    transport.injectStaleBytes(new TextEncoder().encode('\x01\x02\x03\r\nBAD\x01DATA\r\nch> '))
+    await expect(TinySADevice.connect(transport)).rejects.toThrow(ProtocolError)
   })
 
   it('sets sweep config and reads it back', async () => {

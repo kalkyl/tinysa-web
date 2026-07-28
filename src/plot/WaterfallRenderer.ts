@@ -114,9 +114,11 @@ export class WaterfallRenderer {
         const { elapsedNew, elapsedOld } = this.bandElapsedMs(rows, i, nowMs)
         const yTop = plotTop + (elapsedNew / windowMs) * (plotBottom - plotTop)
         const yBottom = plotTop + (elapsedOld / windowMs) * (plotBottom - plotTop)
-        const bandTop = Math.max(plotTop, yTop)
-        const bandBottom = Math.min(plotBottom, yBottom)
-        if (bandBottom <= bandTop) continue
+        const bandTop = Math.min(plotBottom, Math.max(plotTop, yTop))
+        if (bandTop >= plotBottom) continue
+        // Guarantee >=1px so a row right at the trailing edge doesn't flicker between a
+        // sub-pixel height and none, given real sweep timing isn't perfectly uniform.
+        const bandBottom = Math.max(bandTop + 1, Math.min(plotBottom, yBottom))
 
         const { frequenciesHz, amplitudesDbm } = row
         for (let j = 0; j < frequenciesHz.length; j++) {
@@ -132,8 +134,7 @@ export class WaterfallRenderer {
       ctx.restore()
     }
 
-    // Drawn in canvas coordinates (not a CSS border on the container) so it's inset by
-    // the exact same MARGIN as the spectrum plot's own border — pixel-aligned, not just visually close.
+    // Drawn in canvas coordinates, not a CSS border, so it's inset by the exact same MARGIN as the spectrum plot's border.
     ctx.strokeStyle = CHROME.baseline
     ctx.lineWidth = 1
     ctx.strokeRect(plotLeft, plotTop, plotWidth, plotBottom - plotTop)

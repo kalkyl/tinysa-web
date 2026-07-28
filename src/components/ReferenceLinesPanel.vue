@@ -1,11 +1,36 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useReferenceLines } from '../composables/useReferenceLines'
+import { useReferenceLines, type CustomLimitLine } from '../composables/useReferenceLines'
 import { LIMIT_PRESET_DISCLAIMER } from '../data/limitPresets'
 import CustomLimitLineEditor from './CustomLimitLineEditor.vue'
 
-const { presets, isPresetEnabled, togglePreset, customLines, removeCustomLine, subtractModeActive } = useReferenceLines()
+const {
+  presets,
+  isPresetEnabled,
+  togglePreset,
+  customLines,
+  removeCustomLine,
+  toggleCustomLine,
+  isCustomLineEnabled,
+  subtractModeActive,
+} = useReferenceLines()
 const showEditor = ref(false)
+const editingLine = ref<CustomLimitLine | null>(null)
+
+function openAddEditor(): void {
+  editingLine.value = null
+  showEditor.value = true
+}
+
+function openEditEditor(line: CustomLimitLine): void {
+  editingLine.value = line
+  showEditor.value = true
+}
+
+function closeEditor(): void {
+  showEditor.value = false
+  editingLine.value = null
+}
 </script>
 
 <template>
@@ -32,15 +57,30 @@ const showEditor = ref(false)
 
     <ul v-if="customLines.length" class="custom-list">
       <li v-for="line in customLines" :key="line.id" :title="subtractModeActive ? 'Not shown while subtracting (wrong scale)' : ''">
-        <span :class="{ disabled: subtractModeActive }">{{ line.name }} ({{ line.unit }})</span>
-        <button type="button" @click="removeCustomLine(line.id)">Remove</button>
+        <label>
+          <input
+            type="checkbox"
+            :disabled="subtractModeActive"
+            :checked="isCustomLineEnabled(line)"
+            @change="toggleCustomLine(line.id, ($event.target as HTMLInputElement).checked)"
+          />
+          <span :class="{ disabled: subtractModeActive }">{{ line.name }}</span>
+        </label>
+        <div class="custom-line-actions">
+          <button type="button" @click="openEditEditor(line)">Edit</button>
+          <button type="button" @click="removeCustomLine(line.id)">Remove</button>
+        </div>
       </li>
     </ul>
 
-    <button type="button" @click="showEditor = !showEditor">
-      {{ showEditor ? 'Cancel' : 'Add custom line…' }}
-    </button>
-    <CustomLimitLineEditor v-if="showEditor" @submit="showEditor = false" />
+    <button v-if="!showEditor" type="button" @click="openAddEditor">Add custom line…</button>
+    <CustomLimitLineEditor
+      v-if="showEditor"
+      :key="editingLine?.id ?? 'new'"
+      :edit-line="editingLine"
+      @submit="closeEditor"
+      @cancel="closeEditor"
+    />
   </fieldset>
 </template>
 
@@ -61,7 +101,8 @@ const showEditor = ref(false)
   flex-direction: column;
   gap: 0.25rem;
 }
-.preset-list label {
+.preset-list label,
+.custom-list label {
   font-size: 0.85rem;
   display: flex;
   align-items: center;
@@ -73,6 +114,11 @@ const showEditor = ref(false)
   align-items: center;
   justify-content: space-between;
   font-size: 0.8rem;
+}
+.custom-line-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 span.disabled {
   opacity: 0.5;
