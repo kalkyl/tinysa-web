@@ -16,6 +16,7 @@ A browser-based control and visualization app for the tinySA Basic spectrum anal
 - **Cursor readout** — hovering over the plot shows the frequency/amplitude under the pointer in the bottom-right corner.
 - **X/Y axis controls** — linear or log frequency axis, dBm or dBµV amplitude axis, manual or auto Y-axis range.
 - **Measurement storage** — save the live and/or peak-hold curve with a name and note (IndexedDB), including the sweep config and averaging state at the time (shown in the list); overlay any saved curve back onto the live plot, or subtract it as a noise-floor baseline; export/import as JSON or export a single measurement as CSV.
+- **Waterfall** — an optional sweep-history chart directly below the main plot (toggled from the "Waterfall" checkbox in the Display fieldset), showing the live trace over a rolling time window (adjustable in seconds) as a color-mapped heatmap, newest at the top. Its frequency axis is pixel-aligned to the main plot's (same margins, same linear/log scale), so a signal lines up in both, and it has its own hover readout (frequency, time-ago, amplitude). "Sensitivity" (the color scale's dB range) is independent of the main plot's Y-axis and can be auto-fit or set manually, so it can be zoomed to whatever level range is of interest. Off by default (no data is buffered while hidden). Noise-floor subtraction is re-applied across the whole buffer live, same as the live trace, so toggling it doesn't lose history.
 
 ## Requirements
 

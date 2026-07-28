@@ -335,6 +335,7 @@ watchEffect(() => {
       <canvas ref="canvasEl" @mousedown="handleMouseDown" @mousemove="handleMouseMove" @mouseleave="handleMouseLeave"></canvas>
       <div v-if="cursorReadout" class="cursor-readout">{{ cursorReadout }}</div>
     </div>
+    <slot name="below-canvas" />
     <div class="legend-row" :style="{ paddingLeft: `${MARGIN.left}px`, paddingRight: `${MARGIN.right}px` }">
       <ul v-if="legendEntries.length" class="legend">
         <li

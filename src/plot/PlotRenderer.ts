@@ -1,5 +1,5 @@
 import { CHROME } from './colors'
-import { computeLogTicks, computeTicks, formatFrequencyHz, resolveLogRange, type XAxisScale } from './axes'
+import { computeLogTicks, computeTicks, computeXScale, formatFrequencyHz, resolveLogRange, type XAxisScale } from './axes'
 import { formatAmplitude, type YAxisUnit } from './units'
 
 export interface PlotSeriesStyle {
@@ -154,14 +154,7 @@ export class PlotRenderer {
     plotLeft: number,
     plotWidth: number,
   ): (hz: number) => number {
-    const { min, max } = input.freqRangeHz
-    if (input.xAxisScale === 'log') {
-      const { min: safeMin, max: safeMax } = resolveLogRange(min, max)
-      const logRange = Math.log10(safeMax / safeMin) || 1
-      return (hz: number) => plotLeft + (Math.log10(Math.max(hz, safeMin) / safeMin) / logRange) * plotWidth
-    }
-    const range = max - min || 1
-    return (hz: number) => plotLeft + ((hz - min) / range) * plotWidth
+    return computeXScale(input.freqRangeHz, input.xAxisScale, plotLeft, plotWidth)
   }
 
   private drawGrid(

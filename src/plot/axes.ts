@@ -59,3 +59,20 @@ export function computeLogTicks(min: number, max: number): number[] {
   }
   return ticks
 }
+
+/** Shared frequency→x-pixel mapping so any canvas (main plot, waterfall) lines up column-for-column. */
+export function computeXScale(
+  freqRangeHz: { min: number; max: number },
+  xAxisScale: XAxisScale,
+  plotLeft: number,
+  plotWidth: number,
+): (hz: number) => number {
+  const { min, max } = freqRangeHz
+  if (xAxisScale === 'log') {
+    const { min: safeMin, max: safeMax } = resolveLogRange(min, max)
+    const logRange = Math.log10(safeMax / safeMin) || 1
+    return (hz: number) => plotLeft + (Math.log10(Math.max(hz, safeMin) / safeMin) / logRange) * plotWidth
+  }
+  const range = max - min || 1
+  return (hz: number) => plotLeft + ((hz - min) / range) * plotWidth
+}

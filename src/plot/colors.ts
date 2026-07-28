@@ -22,3 +22,43 @@ export function categoricalColor(slot: number): string {
   if (slot < CATEGORICAL.length) return CATEGORICAL[slot]
   return '#8f8d84' // shared muted "Other" — never a generated hue
 }
+
+// Sequential magnitude ramp (dataviz skill reference instance: single hue, blue), stepped
+// 100→700. Reversed from the skill's light-surface ordering (100=lightest) so the
+// low-amplitude end recedes toward this app's dark surface and peaks pop bright — the
+// same steps, just walked in the direction that reads correctly on `CHROME.surface`.
+const WATERFALL_RAMP: string[] = [
+  '#0d366b', // 700 — lowest amplitude, blends toward the dark surface
+  '#104281', // 650
+  '#184f95', // 600
+  '#1c5cab', // 550
+  '#256abf', // 500
+  '#2a78d6', // 450
+  '#3987e5', // 400
+  '#5598e7', // 350
+  '#6da7ec', // 300
+  '#86b6ef', // 250
+  '#9ec5f4', // 200
+  '#b7d3f6', // 150
+  '#cde2fb', // 100 — highest amplitude, pops against the dark surface
+]
+
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+/** Maps a normalized magnitude (0 = lowest, 1 = highest) to a waterfall color, interpolated between ramp steps. */
+export function waterfallColor(t: number): string {
+  const clamped = Math.min(1, Math.max(0, t))
+  const scaled = clamped * (WATERFALL_RAMP.length - 1)
+  const i0 = Math.floor(scaled)
+  const i1 = Math.min(WATERFALL_RAMP.length - 1, i0 + 1)
+  const frac = scaled - i0
+  const [r0, g0, b0] = hexToRgb(WATERFALL_RAMP[i0])
+  const [r1, g1, b1] = hexToRgb(WATERFALL_RAMP[i1])
+  const r = Math.round(r0 + (r1 - r0) * frac)
+  const g = Math.round(g0 + (g1 - g0) * frac)
+  const b = Math.round(b0 + (b1 - b0) * frac)
+  return `rgb(${r}, ${g}, ${b})`
+}

@@ -8,9 +8,13 @@ import PeakHoldControls from './components/PeakHoldControls.vue'
 import NoiseFloorControls from './components/NoiseFloorControls.vue'
 import MarkerReadout from './components/MarkerReadout.vue'
 import PlotCanvas from './components/PlotCanvas.vue'
+import WaterfallCanvas from './components/WaterfallCanvas.vue'
 import DisplayOptions from './components/DisplayOptions.vue'
 import ReferenceLinesPanel from './components/ReferenceLinesPanel.vue'
 import MeasurementsPanel from './components/MeasurementsPanel.vue'
+import { useWaterfall } from './composables/useWaterfall'
+
+const { enabled: waterfallEnabled } = useWaterfall()
 </script>
 
 <template>
@@ -29,7 +33,11 @@ import MeasurementsPanel from './components/MeasurementsPanel.vue'
     </div>
     <div class="main-row">
       <main class="plot-area">
-        <PlotCanvas />
+        <PlotCanvas>
+          <template #below-canvas>
+            <WaterfallCanvas v-if="waterfallEnabled" />
+          </template>
+        </PlotCanvas>
         <DisplayOptions />
       </main>
       <aside class="side-panel">
@@ -68,10 +76,13 @@ import MeasurementsPanel from './components/MeasurementsPanel.vue'
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  overflow-y: auto;
 }
 .plot-area > :first-child {
   flex: 1;
-  min-height: 0;
+  /* No min-height:0 override — that let the canvas's own 320px floor overflow past
+     this shrunk box and overlap the panels below it; the default auto floor plus
+     .plot-area's overflow-y:auto scrolls instead once truly out of room. */
 }
 .side-panel {
   width: 22rem;

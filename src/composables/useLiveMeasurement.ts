@@ -4,6 +4,7 @@ import { useCalibrationOffset } from './useCalibrationOffset'
 import { usePeakHold } from './usePeakHold'
 import { useAveraging } from './useAveraging'
 import { useNoiseFloor } from './useNoiseFloor'
+import { useWaterfall } from './useWaterfall'
 import type { ScanRawFrame } from '../types/protocol'
 
 const calibratedFrame = shallowRef<ScanRawFrame | null>(null)
@@ -18,6 +19,7 @@ export function useLiveMeasurement() {
   const peakHold = usePeakHold()
   const averaging = useAveraging()
   const noiseFloor = useNoiseFloor()
+  const waterfall = useWaterfall()
 
   if (!wired) {
     wired = true
@@ -25,11 +27,13 @@ export function useLiveMeasurement() {
       const offsetApplied = calibration.applyOffset(frame.amplitudesDbm)
       preSubtractionFrame.value = { frequenciesHz: frame.frequenciesHz, amplitudesDbm: offsetApplied, timestampMs: frame.timestampMs }
       calibratedFrame.value = { frequenciesHz: frame.frequenciesHz, amplitudesDbm: offsetApplied, timestampMs: frame.timestampMs }
-      // Peak hold and averaging both accumulate the raw calibrated signal —
-      // noise-floor subtraction is applied to each trace independently, at
-      // display time, so live/peak can each have their own baseline.
+      // Peak hold, averaging, and the waterfall all accumulate the raw
+      // calibrated signal — noise-floor subtraction is applied to each trace
+      // independently, at display time, so live/peak can each have their own
+      // baseline.
       peakHold.ingest(frame.frequenciesHz, offsetApplied)
       averaging.ingest(frame.frequenciesHz, offsetApplied)
+      waterfall.ingest(frame.frequenciesHz, offsetApplied, frame.timestampMs)
     })
   }
 

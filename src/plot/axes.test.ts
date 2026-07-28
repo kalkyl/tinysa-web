@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeLogTicks, computeTicks, formatFrequencyHz, niceStep } from './axes'
+import { computeLogTicks, computeTicks, computeXScale, formatFrequencyHz, niceStep } from './axes'
 
 describe('niceStep', () => {
   it('rounds up to a 1/2/5 x 10^n step', () => {
@@ -56,5 +56,29 @@ describe('computeLogTicks', () => {
       expect(tick).toBeGreaterThanOrEqual(88_000_000)
       expect(tick).toBeLessThanOrEqual(108_000_000)
     }
+  })
+})
+
+describe('computeXScale', () => {
+  it('maps a linear frequency range to pixel positions proportionally', () => {
+    const scale = computeXScale({ min: 0, max: 100 }, 'linear', 10, 200)
+    expect(scale(0)).toBeCloseTo(10)
+    expect(scale(50)).toBeCloseTo(110)
+    expect(scale(100)).toBeCloseTo(210)
+  })
+
+  it('maps a log frequency range logarithmically', () => {
+    const scale = computeXScale({ min: 1, max: 1000 }, 'log', 0, 300)
+    expect(scale(1)).toBeCloseTo(0)
+    expect(scale(1000)).toBeCloseTo(300)
+    expect(scale(10)).toBeCloseTo(100) // 1 of 3 decades
+  })
+
+  it('produces the same mapping PlotRenderer would, for a given plotLeft/plotWidth', () => {
+    // Waterfall rows must line up column-for-column with the spectrum plot above them.
+    const freqRangeHz = { min: 88_000_000, max: 108_000_000 }
+    const scale = computeXScale(freqRangeHz, 'linear', 54, 500)
+    expect(scale(88_000_000)).toBeCloseTo(54)
+    expect(scale(108_000_000)).toBeCloseTo(554)
   })
 })
