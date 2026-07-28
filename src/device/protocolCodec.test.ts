@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   assertClosingMarker,
+  attenuateCommand,
   CLOSE_BRACE_PROMPT,
   decodeScanRawSamples,
+  modeCommand,
+  parseAttenuateResponse,
   parseFrequenciesResponse,
   parseSweepResponse,
   stripEchoAndPrompt,
@@ -61,6 +64,36 @@ describe('decodeScanRawSamples', () => {
   it('throws ProtocolError when payload length does not match expected point count', () => {
     const payload = buildScanRawFixture([1, 2, 3])
     expect(() => decodeScanRawSamples(payload, 4)).toThrow(ProtocolError)
+  })
+})
+
+describe('modeCommand', () => {
+  it('defaults to the input port', () => {
+    expect(modeCommand('low')).toBe('mode low input')
+  })
+
+  it('accepts an explicit output target', () => {
+    expect(modeCommand('high', 'output')).toBe('mode high output')
+  })
+})
+
+describe('attenuateCommand', () => {
+  it('formats a fixed dB value', () => {
+    expect(attenuateCommand(12)).toBe('attenuate 12')
+  })
+
+  it('formats auto', () => {
+    expect(attenuateCommand('auto')).toBe('attenuate auto')
+  })
+})
+
+describe('parseAttenuateResponse', () => {
+  it('takes the resolved dB value from the trailing line, ignoring the usage-hint line', () => {
+    expect(parseAttenuateResponse('attenuate 0..31|auto\r\n8.00')).toBe(8)
+  })
+
+  it('throws ProtocolError on garbage', () => {
+    expect(() => parseAttenuateResponse('not a number')).toThrow(ProtocolError)
   })
 })
 

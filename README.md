@@ -5,6 +5,7 @@ A browser-based control and visualization app for the tinySA Basic spectrum anal
 ## Features
 
 - **Streaming sweeps** — start/stop live sweeps with start/stop frequency, point count, and RBW (manual or auto). Stopping keeps the last frame on screen (a "pause", not a clear).
+- **Input settings** — RF front-end port mode (Low, ≤350 MHz direct sampling, the device default; or High, ≥240 MHz harmonic mixing) and the input attenuator (0–31 dB, defaulting to manual 0 dB). Applied to the device when streaming starts, and re-applied live if changed mid-stream. While streaming, the actually-resolved attenuation is read back from the device once a second and shown next to the control. Note: on tinySA Basic, "Auto" is **not** an adaptive AGC — it's a fixed firmware preset (30 dB in Low input mode, 0 dB in High), which is why it's not the default here; it can noticeably raise the noise floor in Low mode. (tinySA Basic has no software-controllable LNA — that command only exists on Ultra firmware.)
 - **Sweep presets** — built-in EMC-band presets (full range, radiated low/mid/high band, conducted emissions) plus custom presets you can save/delete, stored locally.
 - **Peak hold** — running max per bin, toggled from the plot legend, with its own reset; auto-resets (with a notice) if the point count changes.
 - **Averaging** — rolling-window average of the live curve, with a configurable sweep count and its own reset.

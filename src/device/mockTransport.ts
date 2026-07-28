@@ -1,17 +1,33 @@
 import type { Transport } from './transport'
 import type { PullChunk } from './byteStreamReader'
 
+// Firmware's auto-attenuation always resolves to a real dB value; this stands in for
+// whatever it would have picked based on input level.
+const MOCK_AUTO_ATTENUATION_DB = 8
+
 interface MockState {
   startHz: number
   stopHz: number
   points: number
   rbwKHz: number | 'auto'
   paused: boolean
+  inputMode: 'low' | 'high'
+  attenuatorAuto: boolean
+  attenuatorDb: number
 }
 
 // In-memory simulated tinySA Basic using the same byte framing real hardware uses.
 export class MockTransport implements Transport {
-  private state: MockState = { startHz: 0, stopHz: 800_000_000, points: 450, rbwKHz: 'auto', paused: false }
+  private state: MockState = {
+    startHz: 0,
+    stopHz: 800_000_000,
+    points: 450,
+    rbwKHz: 'auto',
+    paused: false,
+    inputMode: 'low',
+    attenuatorAuto: true,
+    attenuatorDb: MOCK_AUTO_ATTENUATION_DB,
+  }
   private incoming = ''
   private outQueue: Uint8Array[] = []
   private waiters: Array<(chunk: Uint8Array) => void> = []
@@ -61,6 +77,12 @@ export class MockTransport implements Transport {
       case 'rbw':
         this.handleRbw(args)
         return
+      case 'mode':
+        this.handleMode(args)
+        return
+      case 'attenuate':
+        this.handleAttenuate(args)
+        return
       case 'pause':
         this.state.paused = true
         this.respond(line, '')
@@ -103,6 +125,32 @@ export class MockTransport implements Transport {
     }
     this.state.rbwKHz = args[0] === 'auto' ? 'auto' : Number(args[0])
     this.respond(`rbw ${args.join(' ')}`, '')
+  }
+
+  private handleMode(args: string[]): void {
+    if (args.length === 0) {
+      this.respond('mode', this.state.inputMode)
+      return
+    }
+    const [target] = args
+    if (target === 'low' || target === 'high') this.state.inputMode = target
+    this.respond(`mode ${args.join(' ')}`, '')
+  }
+
+  private handleAttenuate(args: string[]): void {
+    if (args.length === 0) {
+      // Real firmware always echoes a resolved dB value on query, even in "auto" mode.
+      this.respond('attenuate', `attenuate 0..31|auto\r\n${this.state.attenuatorDb.toFixed(2)}`)
+      return
+    }
+    if (args[0] === 'auto') {
+      this.state.attenuatorAuto = true
+      this.state.attenuatorDb = MOCK_AUTO_ATTENUATION_DB
+    } else {
+      this.state.attenuatorAuto = false
+      this.state.attenuatorDb = Number(args[0])
+    }
+    this.respond(`attenuate ${args.join(' ')}`, '')
   }
 
   private handleScanRaw(args: string[]): void {

@@ -6,10 +6,12 @@ import { useLiveMeasurement } from '../composables/useLiveMeasurement'
 import { useYAxisRange } from '../composables/useYAxisRange'
 import { useDisplayUnits } from '../composables/useDisplayUnits'
 import { useSweepPresets } from '../composables/useSweepPresets'
+import { useInputSettings } from '../composables/useInputSettings'
 import { convertFromDbm, convertToDbm } from '../plot/units'
 
 const { startHz, stopHz, rbw, points, sweepConfig, validationError } = useSweepConfig()
 const { state } = useSerialPort()
+const { inputMode, attenuator } = useInputSettings()
 const { isStreaming, streamError, start, stop } = useLiveMeasurement()
 const { auto: yAxisAuto, manualMinDbm, manualMaxDbm } = useYAxisRange()
 const { yAxisUnit } = useDisplayUnits()
@@ -76,7 +78,7 @@ async function toggleStreaming(): Promise<void> {
     return
   }
   try {
-    await start(() => sweepConfig.value, () => rbw.value)
+    await start(() => sweepConfig.value, () => rbw.value, () => inputMode.value, () => attenuator.value)
   } catch {
     // streamError surfaces the message; nothing else to do here.
   }

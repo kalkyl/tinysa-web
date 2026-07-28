@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { useAveraging } from '../composables/useAveraging'
+import { useYAxisRange } from '../composables/useYAxisRange'
 
 const { enabled, windowSize, averagedAmplitudesDbm, setEnabled, reset } = useAveraging()
+const { resetAutoRange } = useYAxisRange()
+
+function resetAverage(): void {
+  reset()
+  resetAutoRange()
+}
 </script>
 
 <template>
@@ -12,7 +19,7 @@ const { enabled, windowSize, averagedAmplitudesDbm, setEnabled, reset } = useAve
         Sweeps
         <input v-model.number="windowSize" type="number" min="2" max="200" step="1" :disabled="!enabled" />
       </label>
-      <button type="button" :disabled="!averagedAmplitudesDbm" @click="reset">Reset average</button>
+      <button type="button" :disabled="!averagedAmplitudesDbm" @click="resetAverage">Reset average</button>
     </div>
     <label class="toggle">
       <input type="checkbox" :checked="enabled" @change="setEnabled(($event.target as HTMLInputElement).checked)" />

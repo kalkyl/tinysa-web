@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ConnectionPanel from './components/ConnectionPanel.vue'
 import SweepControls from './components/SweepControls.vue'
+import InputSettingsControls from './components/InputSettingsControls.vue'
 import CalibrationControl from './components/CalibrationControl.vue'
 import AveragingControls from './components/AveragingControls.vue'
 import PeakHoldControls from './components/PeakHoldControls.vue'
@@ -19,6 +20,7 @@ import MeasurementsPanel from './components/MeasurementsPanel.vue'
       <SweepControls />
     </div>
     <div class="side-controls">
+      <InputSettingsControls />
       <CalibrationControl />
       <AveragingControls />
       <PeakHoldControls />

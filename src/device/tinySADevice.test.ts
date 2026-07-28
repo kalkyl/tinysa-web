@@ -64,6 +64,24 @@ describe('TinySADevice + MockTransport', () => {
     expect(device.desynced).toBe(false)
   })
 
+  it('sets input port mode and attenuator on the device', async () => {
+    const device = await TinySADevice.connect(new MockTransport())
+    await expect(device.setInputMode('high')).resolves.toBeUndefined()
+    await expect(device.setAttenuator(12)).resolves.toBeUndefined()
+    await expect(device.setAttenuator('auto')).resolves.toBeUndefined()
+  })
+
+  it('reads back the resolved attenuator dB, including while in auto mode', async () => {
+    const device = await TinySADevice.connect(new MockTransport())
+    await device.setAttenuator(21)
+    expect(await device.getAttenuator()).toBe(21)
+
+    await device.setAttenuator('auto')
+    const autoResolved = await device.getAttenuator()
+    expect(autoResolved).not.toBeNaN()
+    expect(typeof autoResolved).toBe('number')
+  })
+
   describe('timeout handling', () => {
     afterEach(() => {
       vi.useRealTimers()

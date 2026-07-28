@@ -5,10 +5,13 @@ import { DeviceUnsupportedError, TimeoutError } from './errors'
 import { asciiCommandTimeoutMs, computeScanTimeoutMs } from './timeouts'
 import {
   assertClosingMarker,
+  attenuateCommand,
   CLOSE_BRACE_PROMPT,
   decodeScanRawSamples,
   encodeCommand,
+  modeCommand,
   OPEN_BRACE,
+  parseAttenuateResponse,
   parseFrequenciesResponse,
   parseSweepResponse,
   PROMPT,
@@ -22,7 +25,7 @@ import { tinySABasicProfile } from './models/basic'
 import { detectModel } from './models/registry'
 import { estimateAutoRbwKHz, type DeviceProfile } from './models/types'
 import { computeFrequencyList } from '../utils/frequencyList'
-import type { RbwSetting, ScanRawFrame, SweepConfig } from '../types/protocol'
+import type { AttenuatorSetting, InputMode, RbwSetting, ScanRawFrame, SweepConfig } from '../types/protocol'
 
 const MAX_ASCII_RESPONSE_BYTES = 8192
 
@@ -88,6 +91,21 @@ export class TinySADevice {
     await this.setSweep(cfg)
     const text = await this.runAscii('frequencies')
     return parseFrequenciesResponse(text)
+  }
+
+  /** Selects Basic's single RF port's direct-sampling ("low") vs harmonic-mixing ("high") path. */
+  async setInputMode(mode: InputMode): Promise<void> {
+    await this.runAscii(modeCommand(mode))
+  }
+
+  async setAttenuator(setting: AttenuatorSetting): Promise<void> {
+    await this.runAscii(attenuateCommand(setting))
+  }
+
+  /** Reads back the currently active attenuation in dB — resolved to a real value by the firmware even when set to "auto". */
+  async getAttenuator(): Promise<number> {
+    const text = await this.runAscii('attenuate')
+    return parseAttenuateResponse(text)
   }
 
   async pause(): Promise<void> {

@@ -1,5 +1,5 @@
 import { ProtocolError } from './errors'
-import type { SweepConfig } from '../types/protocol'
+import type { AttenuatorSetting, InputMode, SweepConfig } from '../types/protocol'
 
 const encoder = new TextEncoder()
 const decoder = new TextDecoder('ascii')
@@ -25,6 +25,28 @@ export function scanRawCommand(cfg: SweepConfig): string {
 
 export function rbwCommand(khzOrAuto: number | 'auto'): string {
   return `rbw ${khzOrAuto}`
+}
+
+export function modeCommand(target: InputMode, io: 'input' | 'output' = 'input'): string {
+  return `mode ${target} ${io}`
+}
+
+export function attenuateCommand(setting: AttenuatorSetting): string {
+  return `attenuate ${setting}`
+}
+
+// Querying `attenuate` with no argument always echoes a resolved dB value, even in
+// "auto" mode, on its own trailing line (after a repeated usage-hint line).
+export function parseAttenuateResponse(text: string): number {
+  const lines = text
+    .trim()
+    .split(/\r?\n/)
+    .filter((line) => line.length > 0)
+  const value = Number(lines[lines.length - 1])
+  if (Number.isNaN(value)) {
+    throw new ProtocolError(`unexpected attenuate response: ${JSON.stringify(text)}`)
+  }
+  return value
 }
 
 // Strips the echoed command line and trailing `ch> ` prompt, returning just the command's output.
