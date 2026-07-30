@@ -1,4 +1,4 @@
-import { CHROME } from './colors'
+import { CHART_FONT_FAMILY, CHROME } from './colors'
 import { computeLogTicks, computeTicks, computeXScale, formatFrequencyHz, resolveLogRange, type XAxisScale } from './axes'
 import { formatAmplitude, type YAxisUnit } from './units'
 
@@ -249,7 +249,7 @@ export class PlotRenderer {
     ctx.strokeStyle = chrome.mutedInk
     ctx.lineWidth = 1
     ctx.setLineDash([4, 3])
-    ctx.font = '11px system-ui, sans-serif'
+    ctx.font = `11px ${CHART_FONT_FAMILY}`
     ctx.fillStyle = chrome.mutedInk
     ctx.textAlign = 'left'
     ctx.textBaseline = 'bottom'
@@ -284,7 +284,7 @@ export class PlotRenderer {
     ctx.strokeStyle = chrome.gridline
     ctx.lineWidth = 1
     ctx.setLineDash([])
-    ctx.font = '11px system-ui, sans-serif'
+    ctx.font = `11px ${CHART_FONT_FAMILY}`
     ctx.fillStyle = chrome.mutedInk
 
     for (const hz of xTicks) {
@@ -400,7 +400,7 @@ export class PlotRenderer {
     amplitudeIsRelative: boolean | undefined,
   ): { x: number; y: number; width: number; height: number } {
     const widthCss = this.canvas.width / this.dpr
-    this.ctx.font = '11px system-ui, sans-serif'
+    this.ctx.font = `11px ${CHART_FONT_FAMILY}`
     const textWidth = this.ctx.measureText(this.markerLabelText(marker, yAxisUnit, amplitudeIsRelative)).width
     const labelX = Math.min(Math.max(x + 6, 4), widthCss - textWidth - 10)
     return { x: labelX - 3, y: plotTop + 2, width: textWidth + 6, height: 14 }

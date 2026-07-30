@@ -36,11 +36,21 @@ export function convertArrayUnit(values: Float64Array, from: YAxisUnit, to: YAxi
 }
 
 /**
+ * "dBµV", with the proper micro sign — NOT plain "u". CSS `text-transform:
+ * uppercase` folds µ (U+00B5) to Greek capital Mu, which is why an uppercased
+ * label rendered as "DBMV" — the fix is opting out of uppercase where this is
+ * shown, not avoiding the glyph (see the `.unit` class in DisplayOptions.vue).
+ */
+export function unitLabel(unit: YAxisUnit): string {
+  return unit === 'dBuV' ? 'dBµV' : 'dBm'
+}
+
+/**
  * `isRelative` is for noise-floor-subtracted values: they're already a dB
  * *delta*, not an absolute power, so the dBm/dBuV absolute-unit offset must
  * not be applied to them (a delta is unit-invariant — see useNoiseFloor).
  */
 export function formatAmplitude(value: number, unit: YAxisUnit, isRelative = false): string {
   if (isRelative) return `${Math.round(value)} dB`
-  return `${Math.round(value)} ${unit === 'dBuV' ? 'dBµV' : 'dBm'}`
+  return `${Math.round(value)} ${unitLabel(unit)}`
 }

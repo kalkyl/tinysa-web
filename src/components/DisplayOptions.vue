@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { useDisplayUnits } from '../composables/useDisplayUnits'
 import { useSubtractModeActive } from '../composables/useSubtractMode'
 import { useWaterfall } from '../composables/useWaterfall'
-import { convertFromDbm, convertToDbm } from '../plot/units'
+import { convertFromDbm, convertToDbm, unitLabel } from '../plot/units'
 import { MARGIN } from '../plot/PlotRenderer'
 
 const { xAxisScale, yAxisUnit } = useDisplayUnits()
@@ -27,7 +27,7 @@ const hasWaterfallData = computed(() => waterfallRows.value.length > 0)
 
 // Same relative-dB-delta caveat as the Y-axis unit above: a subtracted value is
 // unit-invariant, so skip the dBm/dBuV conversion and just show it as a plain dB delta.
-const waterfallUnitLabel = computed(() => (subtractModeActive.value ? 'dB' : yAxisUnit.value === 'dBuV' ? 'dBµV' : 'dBm'))
+const waterfallUnitLabel = computed(() => (subtractModeActive.value ? 'dB' : unitLabel(yAxisUnit.value)))
 const waterfallMinDisplay = computed({
   get: () => Math.round((subtractModeActive.value ? waterfallColorMinDbm.value : convertFromDbm(waterfallColorMinDbm.value, yAxisUnit.value)) * 10) / 10,
   set: (v: number) => (waterfallColorMinDbm.value = subtractModeActive.value ? v : convertToDbm(v, yAxisUnit.value)),
@@ -48,8 +48,8 @@ const waterfallMaxDisplay = computed({
     </div>
     <div v-if="!subtractModeActive" class="radio-group">
       <span class="group-label">Y-axis unit</span>
-      <label class="radio"><input v-model="yAxisUnit" type="radio" value="dBm" /> dBm</label>
-      <label class="radio"><input v-model="yAxisUnit" type="radio" value="dBuV" /> dBµV</label>
+      <label class="radio"><input v-model="yAxisUnit" type="radio" value="dBm" /> <span class="unit">dBm</span></label>
+      <label class="radio"><input v-model="yAxisUnit" type="radio" value="dBuV" /> <span class="unit">dBµV</span></label>
     </div>
     <div class="divider" aria-hidden="true"></div>
     <div class="radio-group">
@@ -106,6 +106,9 @@ const waterfallMaxDisplay = computed({
 }
 .group-label {
   color: var(--muted-ink);
+}
+.unit {
+  text-transform: none;
 }
 .divider {
   align-self: stretch;

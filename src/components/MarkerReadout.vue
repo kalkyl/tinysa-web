@@ -4,7 +4,7 @@ import { useMarkers, type MarkerId } from '../composables/useMarkers'
 import { useLiveMeasurement } from '../composables/useLiveMeasurement'
 import { useDisplayUnits } from '../composables/useDisplayUnits'
 import { useNoiseFloor } from '../composables/useNoiseFloor'
-import { formatAmplitude, convertFromDbm } from '../plot/units'
+import { formatAmplitude, convertFromDbm, unitLabel } from '../plot/units'
 import { formatFrequencyHz } from '../plot/axes'
 import { nearestBinIndex } from '../utils/nearestBin'
 import { findHarmonicBases } from '../utils/harmonicFinder'
@@ -90,7 +90,7 @@ const harmonicCandidates = computed(() => {
       <div v-if="delta" class="marker-extra">
         <p class="delta">
           Δ: {{ (delta.deltaFreqHz / 1e6).toFixed(3) }} MHz<template v-if="delta.deltaAmp !== null">
-            , {{ delta.deltaAmp >= 0 ? '+' : '' }}{{ delta.deltaAmp.toFixed(1) }} {{ noiseFloorEnabled ? 'dB' : yAxisUnit === 'dBuV' ? 'dBµV' : 'dBm' }}</template
+            , {{ delta.deltaAmp >= 0 ? '+' : '' }}{{ delta.deltaAmp.toFixed(1) }} {{ noiseFloorEnabled ? 'dB' : unitLabel(yAxisUnit) }}</template
           >
         </p>
 

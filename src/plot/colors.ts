@@ -10,6 +10,9 @@ export const CHROME = {
   baseline: '#383835',
 }
 
+// Matches the --mono custom property in style.css — Canvas can't read CSS variables, so kept in sync manually.
+export const CHART_FONT_FAMILY = '"JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, Consolas, monospace'
+
 // Live uses the palette's yellow/amber slot (a nod to the tinySA's own on-device trace color).
 export const LIVE_TRACE_SLOT = 3
 export const PEAK_HOLD_SLOT = 1

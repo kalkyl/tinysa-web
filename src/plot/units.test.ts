@@ -67,7 +67,7 @@ describe('formatAmplitude', () => {
   it('formats dBm', () => {
     expect(formatAmplitude(-73.6875, 'dBm')).toBe('-74 dBm')
   })
-  it('formats dBuV with the mu sign', () => {
+  it('formats dBuV with the micro sign', () => {
     expect(formatAmplitude(33.3, 'dBuV')).toBe('33 dBµV')
   })
 })

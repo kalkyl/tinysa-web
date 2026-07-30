@@ -215,6 +215,7 @@ input[type='number'] {
   width: 7rem;
 }
 .stream-toggle {
+  font-size: 1rem;
   font-weight: 600;
 }
 .preset-group {
