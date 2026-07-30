@@ -251,15 +251,18 @@ export class PlotRenderer {
     ctx.setLineDash([4, 3])
     ctx.font = `11px ${CHART_FONT_FAMILY}`
     ctx.fillStyle = chrome.mutedInk
-    ctx.textAlign = 'left'
-    ctx.textBaseline = 'bottom'
+    ctx.textBaseline = 'middle'
     for (const line of lines) {
       const y = yScale(line.value)
       ctx.beginPath()
       ctx.moveTo(plotLeft, y)
       ctx.lineTo(plotRight, y)
       ctx.stroke()
-      ctx.fillText(line.label, plotLeft + 4, y - 2)
+      // In the y-axis margin, like a tick label — not over the chart data.
+      const textWidth = ctx.measureText(line.label).width
+      const x = Math.max(2, plotLeft - 8 - textWidth)
+      ctx.textAlign = 'left'
+      ctx.fillText(line.label, x, y)
     }
     ctx.restore()
   }

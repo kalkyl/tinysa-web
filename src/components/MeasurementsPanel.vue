@@ -161,49 +161,51 @@ function formatTimestamp(ms: number): string {
             <span v-if="m.averagingWindowSize" class="nowrap">· AVG {{ m.averagingWindowSize }}</span>
           </p>
           <div class="overlay-toggles">
-            <span class="overlay-toggles-label">Overlay:</span>
-            <label
-              class="overlay-toggle"
-              :title="subtractModeActive ? 'Not available while subtracting (wrong scale)' : `Overlay this measurement's live curve`"
-            >
-              <input
-                type="checkbox"
-                :disabled="subtractModeActive"
-                :checked="isOverlayVisible(m.id)"
-                @change="toggleOverlay(m.id, ($event.target as HTMLInputElement).checked)"
-              />
-              <span :class="{ disabled: subtractModeActive }">Live</span>
-            </label>
-            <label
-              v-if="m.peakHoldDbm"
-              class="overlay-toggle"
-              :title="subtractModeActive ? 'Not available while subtracting (wrong scale)' : `Overlay this measurement's peak-hold curve`"
-            >
-              <input
-                type="checkbox"
-                :disabled="subtractModeActive"
-                :checked="isPeakOverlayVisible(m.id)"
-                @change="togglePeakOverlay(m.id, ($event.target as HTMLInputElement).checked)"
-              />
-              <span :class="{ disabled: subtractModeActive }">Peak</span>
-            </label>
-            <label
-              class="overlay-toggle subtract-toggle"
-              :class="{ disabled: !isSweepCompatible(m) }"
-              :title="
-                isSweepCompatible(m)
-                  ? 'Subtract this measurement from the live trace (and peak hold, if it has a peak-hold curve)'
-                  : 'Sweep range/points do not match the current sweep'
-              "
-            >
-              <input
-                type="checkbox"
-                :disabled="!isSweepCompatible(m)"
-                :checked="isSubtractSource(m)"
-                @change="toggleSubtract(m, ($event.target as HTMLInputElement).checked)"
-              />
-              <span :class="{ disabled: !isSweepCompatible(m) }">Subtract</span>
-            </label>
+            <span class="overlay-toggles-label">Overlay</span>
+            <div class="overlay-toggle-row">
+              <label
+                class="overlay-toggle"
+                :title="subtractModeActive ? 'Not available while subtracting (wrong scale)' : `Overlay this measurement's live curve`"
+              >
+                <input
+                  type="checkbox"
+                  :disabled="subtractModeActive"
+                  :checked="isOverlayVisible(m.id)"
+                  @change="toggleOverlay(m.id, ($event.target as HTMLInputElement).checked)"
+                />
+                <span :class="{ disabled: subtractModeActive }">Live</span>
+              </label>
+              <label
+                v-if="m.peakHoldDbm"
+                class="overlay-toggle"
+                :title="subtractModeActive ? 'Not available while subtracting (wrong scale)' : `Overlay this measurement's peak-hold curve`"
+              >
+                <input
+                  type="checkbox"
+                  :disabled="subtractModeActive"
+                  :checked="isPeakOverlayVisible(m.id)"
+                  @change="togglePeakOverlay(m.id, ($event.target as HTMLInputElement).checked)"
+                />
+                <span :class="{ disabled: subtractModeActive }">Peak</span>
+              </label>
+              <label
+                class="overlay-toggle subtract-toggle"
+                :class="{ disabled: !isSweepCompatible(m) }"
+                :title="
+                  isSweepCompatible(m)
+                    ? 'Subtract this measurement from the live trace (and peak hold, if it has a peak-hold curve)'
+                    : 'Sweep range/points do not match the current sweep'
+                "
+              >
+                <input
+                  type="checkbox"
+                  :disabled="!isSweepCompatible(m)"
+                  :checked="isSubtractSource(m)"
+                  @change="toggleSubtract(m, ($event.target as HTMLInputElement).checked)"
+                />
+                <span :class="{ disabled: !isSweepCompatible(m) }">Subtract</span>
+              </label>
+            </div>
           </div>
           <p v-if="m.note" class="note">{{ m.note }}</p>
           <div class="row-actions">
@@ -261,9 +263,14 @@ function formatTimestamp(ms: number): string {
 }
 .overlay-toggles {
   display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+.overlay-toggle-row {
+  display: flex;
   align-items: center;
   gap: 0.7rem;
-  margin-top: 0.4rem;
   flex-wrap: wrap;
 }
 .subtract-toggle {
@@ -280,6 +287,8 @@ function formatTimestamp(ms: number): string {
 .overlay-toggles-label {
   font-size: 0.75rem;
   color: var(--muted-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .overlay-toggle {
   display: flex;

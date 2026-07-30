@@ -19,7 +19,7 @@ function resetAverage(): void {
         Sweeps
         <input v-model.number="windowSize" type="number" min="2" max="200" step="1" :disabled="!enabled" />
       </label>
-      <button type="button" :disabled="!averagedAmplitudesDbm" @click="resetAverage">Reset average</button>
+      <button type="button" :disabled="!averagedAmplitudesDbm" @click="resetAverage">Reset avg</button>
     </div>
     <label class="toggle">
       <input type="checkbox" :checked="enabled" @change="setEnabled(($event.target as HTMLInputElement).checked)" />

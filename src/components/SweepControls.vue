@@ -62,6 +62,11 @@ function saveCurrentAsPreset(): void {
   showSaveForm.value = false
 }
 
+function toggleSaveForm(): void {
+  showSaveForm.value = !showSaveForm.value
+  newPresetName.value = ''
+}
+
 function deleteSelectedPreset(): void {
   if (!isCustomPreset(selectedPresetId.value)) return
   const preset = customPresets.value.find((p) => p.id === selectedPresetId.value)
@@ -164,11 +169,13 @@ async function toggleStreaming(): Promise<void> {
       </label>
       <div class="checkbox-group">
         <span class="spacer-label" aria-hidden="true">&nbsp;</span>
-        <button type="button" :disabled="isStreaming" @click="showSaveForm = !showSaveForm">Save as preset…</button>
+        <button type="button" :disabled="isStreaming" @click="toggleSaveForm">
+          {{ showSaveForm ? 'Cancel' : 'Save as preset…' }}
+        </button>
       </div>
-      <div class="checkbox-group">
+      <div v-if="!showSaveForm" class="checkbox-group">
         <span class="spacer-label" aria-hidden="true">&nbsp;</span>
-        <button type="button" :disabled="!isCustomPreset(selectedPresetId)" @click="deleteSelectedPreset">Delete preset</button>
+        <button type="button" :disabled="!isCustomPreset(selectedPresetId)" @click="deleteSelectedPreset">Delete</button>
       </div>
     </div>
 
@@ -228,6 +235,9 @@ input[type='number'] {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.save-preset-form input {
+  font-size: 0.8rem;
 }
 .warning {
   flex-basis: 100%;

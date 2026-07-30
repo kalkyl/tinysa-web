@@ -14,7 +14,7 @@ function resetPeakHold(): void {
 <template>
   <fieldset class="peak-hold-controls">
     <legend>Peak hold</legend>
-    <button :disabled="!peakAmplitudesDbm" @click="resetPeakHold">Reset peak hold</button>
+    <button :disabled="!peakAmplitudesDbm" @click="resetPeakHold">Reset peak</button>
     <label class="toggle">
       <input type="checkbox" :checked="enabled" @change="setEnabled(($event.target as HTMLInputElement).checked)" />
       Enable

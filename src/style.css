@@ -31,6 +31,9 @@ body {
 button {
   font: inherit;
   font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -155,6 +158,12 @@ label {
 label input,
 label select,
 label textarea {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Checkbox captions read better in sentence case than the shouty all-caps used for fieldset legends/radio groups. */
+label:has(input[type='checkbox']) {
   text-transform: none;
   letter-spacing: normal;
 }
