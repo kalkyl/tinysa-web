@@ -8,9 +8,10 @@
   --border: #383835;
   --error-ink: #ff6b61;
   --accent: #c98500;
+  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, Consolas, monospace;
 
   color-scheme: dark;
-  font: 14px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+  font: 14px/1.4 var(--mono);
   color: var(--primary-ink);
   background: var(--surface);
   font-synthesis: none;
@@ -127,8 +128,20 @@ legend {
   color: var(--secondary-ink);
   font-size: 0.8rem;
   padding: 0 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 label {
   color: var(--secondary-ink);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* text-transform inherits — reset it on nested controls so only the label's own caption is uppercased. */
+label input,
+label select,
+label textarea {
+  text-transform: none;
+  letter-spacing: normal;
 }

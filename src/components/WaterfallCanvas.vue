@@ -125,7 +125,6 @@ canvas {
   bottom: 8px;
   padding: 0.15rem 0.5rem;
   font-size: 0.75rem;
-  font-family: ui-monospace, monospace;
   color: var(--primary-ink);
   background: color-mix(in srgb, var(--surface) 80%, transparent);
   border: 1px solid var(--border);
